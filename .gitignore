@@ -1,0 +1,10 @@
+node_modules
+.next
+out
+data/*.sqlite
+data/*.sqlite-*
+data/secret
+.env
+.env.local
+*.log
+tsconfig.tsbuildinfo
