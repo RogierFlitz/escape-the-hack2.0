@@ -127,7 +127,14 @@ const globalSql = globalThis as unknown as { __ethSqlV4?: Promise<Sql> };
 export function sql() {
   if (!globalSql.__ethSqlV4) {
     const url = process.env.DATABASE_URL;
-    globalSql.__ethSqlV4 = url && url.startsWith("postgres") ? postgres(url) : Promise.resolve(sqlite());
+    if (process.env.VERCEL && !(url && url.startsWith("postgres"))) {
+      globalSql.__ethSqlV4 = Promise.reject(new Error("NO_STORE"));
+    } else {
+      globalSql.__ethSqlV4 = url && url.startsWith("postgres") ? postgres(url) : Promise.resolve(sqlite());
+    }
   }
-  return globalSql.__ethSqlV4;
+  return globalSql.__ethSqlV4.catch((error: unknown) => {
+    globalSql.__ethSqlV4 = undefined;
+    throw error;
+  });
 }

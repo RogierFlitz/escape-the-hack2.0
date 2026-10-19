@@ -103,18 +103,22 @@ export function AdminApp() {
   async function create(event: React.FormEvent) {
     event.preventDefault();
     setFormError("");
-    const response = await fetch("/api/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, durationMin: duration, hintPenalty: penaltyOn, hintPenaltySec: penaltySec, teams, mode }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setFormError(data.error ?? "Aanmaken mislukt.");
-      return;
+    try {
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, durationMin: duration, hintPenalty: penaltyOn, hintPenaltySec: penaltySec, teams, mode }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.session) {
+        setFormError(data?.error ?? "Aanmaken mislukt.");
+        return;
+      }
+      setActiveId(data.session.id);
+      await refreshList();
+    } catch {
+      setFormError("Aanmaken mislukt.");
     }
-    setActiveId(data.session.id);
-    await refreshList();
   }
 
   async function control(action: string, extra: Record<string, unknown> = {}) {
