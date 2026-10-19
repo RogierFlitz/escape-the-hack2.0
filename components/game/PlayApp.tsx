@@ -119,6 +119,13 @@ export function PlayApp({ code }: { code: string }) {
   }, [cine, code]);
 
   useEffect(() => {
+    if (!snap?.finished) return;
+    if (new URLSearchParams(window.location.search).get("voorbeeld") !== "1") return;
+    setReportOpen(true);
+    setEvalOpen(true);
+  }, [snap?.finished]);
+
+  useEffect(() => {
     if (!snap || originSync.current) return;
     if (!includesTraining(snap.session.mode ?? "escape") || prologueComplete(snap.awareness ?? emptyAwareness())) return;
     const local = sessionStorage.getItem(`eth-origin-${code}`);

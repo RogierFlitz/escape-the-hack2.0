@@ -13,6 +13,7 @@ export const demoStops = [
   { id: "m4", label: "Missie 4" },
   { id: "m5", label: "Missie 5" },
   { id: "finale", label: "Finale" },
+  { id: "resultaten", label: "Resultaten" },
 ] as const;
 
 export type DemoStop = (typeof demoStops)[number]["id"];
@@ -38,7 +39,7 @@ export function isDemoStop(value: unknown): value is DemoStop {
 export function demoProgress(stop: DemoStop): { breach: boolean; story: StoryState; solved: string[]; inventory: string[] } {
   if (stop === "briefing" || stop === "origin") return { breach: false, story: emptyStory(), solved: [], inventory: [] };
   if (stop === "kade") return { breach: true, story: emptyStory(), solved: [], inventory: [] };
-  const mission = stop === "finale" ? 6 : Number(stop.slice(1));
+  const mission = stop === "resultaten" ? 7 : stop === "finale" ? 6 : Number(stop.slice(1));
   const solved = chapters.filter((chapter) => chapter.id < mission).flatMap((chapter) => [...chapter.puzzles]);
   const scenes = ["incident"];
   for (let id = 1; id < mission; id += 1) scenes.push(`m${id}`, `d${id}`);
@@ -46,7 +47,13 @@ export function demoProgress(stop: DemoStop): { breach: boolean; story: StorySta
     breach: true,
     solved,
     inventory: solved.map((id) => TOKENS[id]).filter((token): token is string => Boolean(token)),
-    story: { scenes, social: mission > 1, backup: mission > 4, finale: [], replay: null },
+    story: {
+      scenes,
+      social: mission > 1,
+      backup: mission > 4,
+      finale: stop === "resultaten" ? ["access", "revoke", "backup-check"] : [],
+      replay: null,
+    },
   };
 }
 

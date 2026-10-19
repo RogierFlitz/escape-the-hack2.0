@@ -265,6 +265,7 @@ test("demo landt op het gekozen moment", () => {
   assert.equal(demoBeat("m4"), "m4");
   assert.equal(demoBeat("m5"), "m5");
   assert.equal(demoBeat("finale"), "m6");
+  assert.equal(demoBeat("resultaten"), "done");
 });
 
 test("de verdachte mail komt na genoeg onderzoek, zonder vaste volgorde", () => {

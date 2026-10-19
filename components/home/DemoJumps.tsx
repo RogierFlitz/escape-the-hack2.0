@@ -37,7 +37,8 @@ export function DemoJumps() {
         return;
       }
       clearDemoClient(data.code ?? DEMO_CODE);
-      window.location.assign(`/play/${data.code ?? DEMO_CODE}`);
+      const preview = at === "resultaten" ? "?voorbeeld=1" : "";
+      window.location.assign(`/play/${data.code ?? DEMO_CODE}${preview}`);
     } catch {
       setError("Demo lukte niet.");
       setBusy(null);

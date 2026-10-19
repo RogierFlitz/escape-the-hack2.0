@@ -344,11 +344,13 @@ export async function openDemo(stop: DemoStop) {
   }
   if (!found) return { error: "Demo kon niet worden geopend." as const };
   const progress = demoProgress(stop);
+  const preview = stop === "resultaten";
+  const startedAt = preview ? now - 42 * 60 * 1000 : now;
   await saveSession({
     ...found.session,
     name: "Demo",
     status: "live",
-    startedAt: now,
+    startedAt,
     pauseStartedAt: null,
     pausedMs: 0,
     timeAdjustSec: 0,
@@ -359,7 +361,7 @@ export async function openDemo(stop: DemoStop) {
   const next: Team = {
     ...found.team,
     name: "Demo",
-    status: "playing",
+    status: preview ? "completed" : "playing",
     solved: progress.solved,
     hints: {},
     instructorHints: {},
@@ -367,7 +369,7 @@ export async function openDemo(stop: DemoStop) {
     eventsSeen: [],
     penaltySec: 0,
     fails: 0,
-    finishedAt: null,
+    finishedAt: preview ? now : null,
     updatedAt: now,
     lastProgressAt: now,
     breachOffsetSec: progress.breach ? 0 : null,
