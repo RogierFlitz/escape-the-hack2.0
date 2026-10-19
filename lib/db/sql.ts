@@ -92,13 +92,20 @@ function toPg(sql: string) {
   return sql.replace(/\?/g, () => `$${++index}`);
 }
 
+function readEnv(name: string) {
+  const value = process.env[name];
+  return typeof value === "string" ? value : "";
+}
+
 async function postgres(url: string): Promise<Sql> {
   const { Pool } = await import("pg");
   const pool = new Pool({
     connectionString: url,
-    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+    ssl: readEnv("DATABASE_SSL") === "true" ? { rejectUnauthorized: false } : undefined,
   });
-  await pool.query(SCHEMA);
+  for (const statement of SCHEMA.split(";").map((item) => item.trim()).filter(Boolean)) {
+    await pool.query(statement);
+  }
   for (const statement of MIGRATIONS) {
     try {
       await pool.query(statement);
@@ -126,8 +133,8 @@ const globalSql = globalThis as unknown as { __ethSqlV4?: Promise<Sql> };
 
 export function sql() {
   if (!globalSql.__ethSqlV4) {
-    const url = process.env.DATABASE_URL;
-    if (process.env.VERCEL && !(url && url.startsWith("postgres"))) {
+    const url = readEnv("DATABASE_URL");
+    if (readEnv("VERCEL") && !url.startsWith("postgres")) {
       globalSql.__ethSqlV4 = Promise.reject(new Error("NO_STORE"));
     } else {
       globalSql.__ethSqlV4 = url && url.startsWith("postgres") ? postgres(url) : Promise.resolve(sqlite());

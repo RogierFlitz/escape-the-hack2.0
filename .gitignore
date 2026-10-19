@@ -8,3 +8,5 @@ data/secret
 .env.local
 *.log
 tsconfig.tsbuildinfo
+.vercel
+.env*

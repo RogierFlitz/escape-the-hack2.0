@@ -52,20 +52,31 @@ function parse<T>(value: string, fallback: T): T {
   }
 }
 
+function num(value: unknown, fallback = 0) {
+  const next = Number(value);
+  return Number.isFinite(next) ? next : fallback;
+}
+
+function numOrNull(value: unknown) {
+  if (value == null || value === "") return null;
+  const next = Number(value);
+  return Number.isFinite(next) ? next : null;
+}
+
 function sessionOf(row: SessionRow): Session {
   return {
     id: row.id,
     name: row.name,
-    durationSec: row.duration_sec,
-    hintPenalty: row.hint_penalty === 1,
-    hintPenaltySec: row.hint_penalty_sec,
+    durationSec: num(row.duration_sec),
+    hintPenalty: num(row.hint_penalty) === 1,
+    hintPenaltySec: num(row.hint_penalty_sec),
     status: row.status,
-    startedAt: row.started_at,
-    pauseStartedAt: row.pause_started_at,
-    pausedMs: row.paused_ms,
-    timeAdjustSec: row.time_adjust_sec,
-    createdAt: row.created_at,
-    endedAt: row.ended_at,
+    startedAt: numOrNull(row.started_at),
+    pauseStartedAt: numOrNull(row.pause_started_at),
+    pausedMs: num(row.paused_ms),
+    timeAdjustSec: num(row.time_adjust_sec),
+    createdAt: num(row.created_at),
+    endedAt: numOrNull(row.ended_at),
     mode: parseMode(row.mode),
   };
 }
@@ -82,13 +93,13 @@ function teamOf(row: TeamRow): Team {
     instructorHints: parse(row.instructor_hints_json, {}),
     inventory: parse(row.inventory_json, []),
     eventsSeen: parse(row.events_seen_json, []),
-    penaltySec: row.penalty_sec,
-    fails: row.fails,
-    finishedAt: row.finished_at,
-    updatedAt: row.updated_at,
-    lastProgressAt: row.last_progress_at,
-    breachOffsetSec: row.breach_offset_sec,
-    phishReported: row.phish_reported === 1,
+    penaltySec: num(row.penalty_sec),
+    fails: num(row.fails),
+    finishedAt: numOrNull(row.finished_at),
+    updatedAt: num(row.updated_at),
+    lastProgressAt: num(row.last_progress_at),
+    breachOffsetSec: numOrNull(row.breach_offset_sec),
+    phishReported: num(row.phish_reported) === 1,
     awareness: parseAwareness(parse(row.awareness_json || "{}", {})),
     story: parseStory(parse(row.story_json || "{}", {})),
   };
