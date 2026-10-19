@@ -10,13 +10,20 @@ const COOKIE = "eth_admin";
 export { checkPassword, usingDefaultPassword };
 
 function secret() {
-  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  const configured = process.env["SESSION_SECRET"];
+  if (configured) return configured;
   const file = path.join(process.cwd(), "data", "secret");
-  if (!existsSync(file)) {
-    mkdirSync(path.dirname(file), { recursive: true });
-    writeFileSync(file, randomBytes(32).toString("hex"), { mode: 0o600 });
+  try {
+    if (!existsSync(file)) {
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, randomBytes(32).toString("hex"), { mode: 0o600 });
+    }
+    return readFileSync(file, "utf8");
+  } catch {
+    const password = process.env["ADMIN_PASSWORD"];
+    if (!password) throw new Error("SESSION_SECRET ontbreekt.");
+    return createHmac("sha256", "eth-session").update(password).digest("hex");
   }
-  return readFileSync(file, "utf8");
 }
 
 function sign(value: string) {

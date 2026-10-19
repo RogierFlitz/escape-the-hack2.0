@@ -7,12 +7,17 @@ type Bucket = { count: number; reset: number };
 
 const failures = new Map<string, Bucket>();
 
+function readEnv(name: string) {
+  const value = process.env[name];
+  return typeof value === "string" ? value : "";
+}
+
 export function usingDefaultPassword() {
-  return process.env.NODE_ENV !== "production" && !process.env.ADMIN_PASSWORD;
+  return readEnv("NODE_ENV") !== "production" && !readEnv("ADMIN_PASSWORD");
 }
 
 export function adminConfigError() {
-  if (process.env.NODE_ENV === "production" && !process.env.ADMIN_PASSWORD) {
+  if (readEnv("NODE_ENV") === "production" && !readEnv("ADMIN_PASSWORD")) {
     return "Beheer is niet geconfigureerd. Zet ADMIN_PASSWORD in de omgeving en start de server opnieuw.";
   }
   return null;
@@ -25,8 +30,8 @@ function safeEqual(a: string, b: string) {
 }
 
 export function checkPassword(input: string) {
-  const configured = process.env.ADMIN_PASSWORD;
-  if (process.env.NODE_ENV === "production") {
+  const configured = readEnv("ADMIN_PASSWORD");
+  if (readEnv("NODE_ENV") === "production") {
     if (!configured) return false;
     return safeEqual(input, configured);
   }
@@ -44,7 +49,7 @@ export function requestIsHttps(request: { url: string; headers: { get(name: stri
 }
 
 export function loginClientKey(request: { headers: { get(name: string): string | null } }) {
-  if (process.env.TRUST_PROXY === "true") {
+  if (readEnv("TRUST_PROXY") === "true") {
     const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
     if (forwarded) return forwarded.slice(0, 80);
   }
