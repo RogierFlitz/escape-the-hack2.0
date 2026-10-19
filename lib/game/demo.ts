@@ -27,9 +27,13 @@ const TOKENS: Record<string, string> = {
   "ch5-accuse": "INSIDER:ADLER",
 };
 
+export function demoToolsEnabled() {
+  return process.env["DEMO_TOOLS"] === "true";
+}
+
 export function demoBlocked(admin: boolean) {
   if (process.env.NODE_ENV !== "production") return false;
-  return !(process.env.DEMO_TOOLS === "true" && admin);
+  return !(demoToolsEnabled() && admin);
 }
 
 export function isDemoStop(value: unknown): value is DemoStop {

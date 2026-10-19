@@ -33,7 +33,7 @@ function limited(retrySec: number) {
 
 export function guardPlay(code: string, kind: "read" | "write") {
   const normalized = code.trim().toUpperCase();
-  if (normalized === "DEMO" && process.env.NODE_ENV === "production" && process.env.DEMO_TOOLS !== "true") {
+  if (normalized === "DEMO" && process.env.NODE_ENV === "production" && process.env["DEMO_TOOLS"] !== "true") {
     return NextResponse.json({ ok: false, error: "Code niet herkend." }, { status: 404 });
   }
   const slot = takeSlot(`${kind}:${normalized}`, kind === "write" ? 40 : 90);

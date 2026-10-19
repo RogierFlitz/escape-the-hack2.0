@@ -18,8 +18,9 @@ export function HomeScreen() {
       return;
     }
     const response = await fetch(`/api/play/${next}`, { cache: "no-store" });
+    const data = await response.json().catch(() => null);
     if (!response.ok) {
-      setError("Deze code hoort bij geen enkel team.");
+      setError(typeof data?.error === "string" ? data.error : "Deze code hoort bij geen enkel team.");
       return;
     }
     router.push(`/play/${next}`);

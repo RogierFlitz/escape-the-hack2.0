@@ -16,10 +16,10 @@ function clearDemoClient(code: string) {
   sessionStorage.removeItem(`eth-origin-${code}`);
 }
 
-export function DemoJumps() {
+export function DemoJumps({ always = false }: { always?: boolean }) {
   const [busy, setBusy] = useState<DemoStop | null>(null);
   const [error, setError] = useState("");
-  if (!demoToolsOn()) return null;
+  if (!always && !demoToolsOn()) return null;
 
   async function open(at: DemoStop) {
     setBusy(at);
@@ -48,7 +48,7 @@ export function DemoJumps() {
   return (
     <div className="demo-jumps">
       <p className="kicker">Testen</p>
-      <p className="muted">Zet het demoteam terug op dit punt. Je hoeft geen nieuw spel te starten.</p>
+      <p className="muted">Zet het demoteam terug op dit punt. Op het spelersscherm werkt de code DEMO.</p>
       <div className="demo-row">
         {demoStops.map((stop) => (
           <button key={stop.id} className="btn" type="button" disabled={busy !== null} onClick={() => void open(stop.id)}>

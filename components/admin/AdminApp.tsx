@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DemoJumps } from "../home/DemoJumps";
 import { MODE_PLAN, type GameMode } from "@/lib/game/awareness";
 import type { AdminSnapshot, Session } from "@/lib/types";
 import { AdminResults } from "../results/ResultsApp";
@@ -174,6 +175,10 @@ export function AdminApp() {
             <button className="btn" type="button" onClick={async () => { await fetch("/api/admin/logout", { method: "POST" }); setAuthed(false); }}>Afmelden</button>
           </div>
         </header>
+
+        <div className="panel" style={{ padding: 16, marginTop: 12 }}>
+          <DemoJumps always />
+        </div>
 
         {!activeId && (
           <form className="panel" style={{ padding: 18 }} onSubmit={create}>
