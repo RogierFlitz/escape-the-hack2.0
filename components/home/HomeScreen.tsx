@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { DemoJumps } from "./DemoJumps";
+import { DEMO_CODE } from "@/lib/game/demo";
+import { clearDemoClient, DemoJumps } from "./DemoJumps";
 import { Pwa } from "../Pwa";
 
 export function HomeScreen() {
@@ -17,12 +18,14 @@ export function HomeScreen() {
       setError("Vul de teamcode in.");
       return;
     }
-    const response = await fetch(`/api/play/${next}`, { cache: "no-store" });
+    const opening = next === DEMO_CODE;
+    const response = await fetch(`/api/play/${next}${opening ? "?start=1" : ""}`, { cache: "no-store" });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       setError(typeof data?.error === "string" ? data.error : "Deze code hoort bij geen enkel team.");
       return;
     }
+    if (opening) clearDemoClient(next);
     router.push(`/play/${next}`);
   }
 

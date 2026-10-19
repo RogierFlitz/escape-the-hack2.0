@@ -454,3 +454,29 @@ test("tien teams houden een eigen klok, score, inventaris en hintstraf", async (
   assert.equal(again.team.score, leader.team.score);
   assert.equal(again.team.penaltySec, leader.team.penaltySec);
 });
+
+test("de demo start als NIS2 op de proloog en de klok wacht", async () => {
+  await load();
+  const opened = await actions.openDemo("origin");
+  assert.equal("code" in opened, true);
+  const view = await snap("DEMO");
+  assert.equal(view.session.mode, "nis2");
+  assert.equal(view.session.durationSec, 3600);
+  assert.equal(view.phase, "office");
+  assert.equal(view.session.running, false);
+  assert.equal(view.awareness.prologue.length, 0);
+  assert.equal(prologueComplete(view.awareness), false);
+  assert.equal((await store.getByCode("DEMO"))?.team.breachOffsetSec, null);
+  await actions.triggerBreach("DEMO", false);
+  const clockOn = await snap("DEMO");
+  assert.equal(clockOn.phase, "crisis");
+  assert.equal(clockOn.session.running, true);
+  const reset = await actions.openDemo("origin");
+  assert.equal("code" in reset, true);
+  const fresh = await snap("DEMO");
+  assert.equal(fresh.session.mode, "nis2");
+  assert.equal(fresh.phase, "office");
+  assert.equal(fresh.session.running, false);
+  assert.equal(fresh.awareness.prologue.length, 0);
+  assert.equal(fresh.session.durationSec, 3600);
+});

@@ -7,7 +7,7 @@ export function demoToolsOn() {
   return process.env.NODE_ENV !== "production";
 }
 
-function clearDemoClient(code: string) {
+export function clearDemoClient(code: string) {
   localStorage.removeItem(`eth-office-${code}`);
   localStorage.removeItem(`eth-snap-${code}`);
   localStorage.removeItem(`eth-queue-${code}`);

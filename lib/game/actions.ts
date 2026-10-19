@@ -356,7 +356,7 @@ export async function openDemo(stop: DemoStop) {
     timeAdjustSec: 0,
     endedAt: null,
     durationSec: 3600,
-    mode: stop === "origin" ? "awareness" : "escape",
+    mode: "nis2",
   });
   const next: Team = {
     ...found.team,
@@ -374,7 +374,7 @@ export async function openDemo(stop: DemoStop) {
     lastProgressAt: now,
     breachOffsetSec: progress.breach ? 0 : null,
     phishReported: false,
-    awareness: emptyAwareness(),
+    awareness: stop === "origin" ? emptyAwareness() : markPrologue({ awareness: emptyAwareness(), breachOffsetSec: null }, "skip").awareness,
     story: progress.story,
   };
   const wrote = await saveTeam(found.team.updatedAt, next);
