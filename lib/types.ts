@@ -1,4 +1,5 @@
 import type { AwarenessState, GameMode } from "./game/awareness";
+import type { Sector } from "./game/sector";
 
 export type SessionStatus = "draft" | "live" | "paused" | "ended";
 export type TeamStatus = "ready" | "playing" | "completed" | "failed";
@@ -10,6 +11,7 @@ export type Session = {
   hintPenalty: boolean;
   hintPenaltySec: number;
   mode: GameMode;
+  sector: Sector;
   status: SessionStatus;
   startedAt: number | null;
   pauseStartedAt: number | null;
@@ -90,6 +92,7 @@ export type PlaySnapshot = {
     hintPenalty: boolean;
     hintPenaltySec: number;
     mode: GameMode;
+    sector: Sector;
   };
   awareness: AwarenessState;
   chapter: { id: number; title: string; subtitle: string; index: number; total: number };

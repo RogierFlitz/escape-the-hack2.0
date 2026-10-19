@@ -1,6 +1,8 @@
 "use client";
 
 import { claims, sources } from "@/lib/game/footprint";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "../SectorSkin";
 import { sourcePhoto, typeLabel, type Pin } from "./meta";
 
 export function Mission1EvidenceBoard({
@@ -24,6 +26,7 @@ export function Mission1EvidenceBoard({
   onSources: () => void;
   onSubmit: () => void;
 }) {
+  const sector = useSector();
   return (
     <section className="m1-board" aria-label="Onderzoeksbord">
       <header>
@@ -46,7 +49,7 @@ export function Mission1EvidenceBoard({
                   {photo ? <img src={photo} alt="" /> : <span aria-hidden>{typeLabel[source.kind].slice(0, 1)}</span>}
                   <span>
                     <small>{typeLabel[source.kind]}</small>
-                    <strong>{source.title}</strong>
+                    <strong>{asSector(sector, source.title)}</strong>
                   </span>
                 </button>
               ) : (
@@ -55,7 +58,7 @@ export function Mission1EvidenceBoard({
               <span className="m1-wire" aria-hidden />
               <article>
                 <small>{index + 1}. {solved ? "Vastgelegd" : source ? "Gekoppeld" : "Open"}</small>
-                <strong>{claim.label}</strong>
+                <strong>{asSector(sector, claim.label)}</strong>
                 {source && (
                   <div>
                     <button type="button" onClick={() => onOpen(source.id)}>Bekijk</button>

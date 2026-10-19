@@ -1,4 +1,5 @@
 import { decisionView, evalView, EVAL_IDS, LEGAL_NOTE, MISSION_LEARN, type GameMode } from "./awareness";
+import { parseSector, sectorLine, type Sector } from "./sector";
 import { chapters, puzzles } from "./content";
 import { completedChapters, scoreBreakdown } from "../scoring";
 import { crisisElapsedSec, teamRemainingSec } from "../time";
@@ -387,10 +388,13 @@ export function rankTeams(session: Session, teams: Team[], now: number) {
     .sort((a, b) => scoreBreakdown(session, b, now).total - scoreBreakdown(session, a, now).total || a.name.localeCompare(b.name));
 }
 
-function modeNote(mode: GameMode) {
-  if (mode === "nis2") return "NIS2-training. De koppeling gebruikt de bestaande leerthema's en de vastgelegde keuzes. Dit rapport verandert die vragen niet.";
-  if (mode === "awareness") return "Cyber Awareness. De nadruk ligt op het herkennen van risico's en op wat het team de volgende keer anders kan doen.";
-  return "Escape Room. Dit verslag beschrijft het teamresultaat met de gegevens die het spel bewaart.";
+function modeNote(mode: GameMode, sector: Sector) {
+  const base = mode === "nis2"
+    ? "NIS2-training. De koppeling gebruikt de bestaande leerthema's en de vastgelegde keuzes. Dit rapport verandert die vragen niet."
+    : mode === "awareness"
+      ? "Cyber Awareness. De nadruk ligt op het herkennen van risico's en op wat het team de volgende keer anders kan doen."
+      : "Escape Room. Dit verslag beschrijft het teamresultaat met de gegevens die het spel bewaart.";
+  return `${base} ${sectorLine(sector)}`;
 }
 
 export function sessionReport(session: Session, teams: Team[], now: number): SessionReport {
@@ -422,7 +426,7 @@ export function sessionReport(session: Session, teams: Team[], now: number): Ses
     passRule: PASS_RULE,
     tieRule: TIE_RULE,
     disclaimer: DISCLAIMER,
-    modeNote: modeNote(session.mode ?? "escape"),
+    modeNote: modeNote(session.mode ?? "escape", parseSector(session.sector)),
     legalNote: session.mode === "nis2" ? LEGAL_NOTE : null,
     participants: null,
     participantsNote: "Het aantal deelnemers per team wordt niet geregistreerd.",

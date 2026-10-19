@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { colleaguePost } from "@/lib/game/footprint";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "../SectorSkin";
 import { Pin, type Investigation } from "../Intranet";
 import { socialExtras } from "./records";
 
@@ -84,6 +86,7 @@ export function SocialApp({
   focusId?: string | null;
   onPerson: (name: string) => void;
 }) {
+  const sector = useSector();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("Alles");
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(focusId && POSTS.some((post) => post.id === focusId) ? focusId : null);
@@ -96,10 +99,10 @@ export function SocialApp({
   const visible = useMemo(
     () => POSTS.filter((post) => {
       const audienceOk = filter === "Alles" || post.audience === filter;
-      const text = `${post.author} ${post.title} ${post.body}`.toLowerCase();
+      const text = asSector(sector, `${post.author} ${post.title} ${post.body}`).toLowerCase();
       return audienceOk && (!needle || text.includes(needle));
     }),
-    [filter, needle],
+    [filter, needle, sector],
   );
   const open = POSTS.find((post) => post.id === openId) ?? null;
 
@@ -107,8 +110,8 @@ export function SocialApp({
     <div className="os-app os-social">
       <header className="os-head">
         <div>
-          <p className="os-kicker">Nexora Social</p>
-          <h2>{open ? open.title : "Tijdlijn"}</h2>
+          <p className="os-kicker">{asSector(sector, "Nexora Social")}</p>
+          <h2>{open ? asSector(sector, open.title) : "Tijdlijn"}</h2>
           <p>Collega&apos;s, de bedrijfspagina en gewone updates. Openbaar is voor iedereen te lezen.</p>
         </div>
         <label className="os-search">
@@ -120,7 +123,7 @@ export function SocialApp({
         <aside className="os-side">
           <button type="button" className="os-pagecard" onClick={() => setOpenId("social-prep")}>
             <img src="/news/nexora-day.jpg" alt="" />
-            <strong>Nexora Technologies</strong>
+            <strong>{asSector(sector, "Nexora Technologies")}</strong>
             <span>Bedrijfspagina</span>
           </button>
           <div className="os-chips" role="tablist" aria-label="Zichtbaarheid">
@@ -178,18 +181,21 @@ function PostBody({
   onZoom: () => void;
   onPerson: (name: string) => void;
 }) {
+  const sector = useSector();
+  const author = asSector(sector, post.author);
+  const role = asSector(sector, post.role);
   return (
     <>
       <header>
         {knownPerson(post.author) ? (
-          <button type="button" onClick={() => onPerson(post.author)}><b>{initials(post.author)}</b><span><strong>{post.author}</strong><small>{post.role} · {post.when}</small></span></button>
+          <button type="button" onClick={() => onPerson(post.author)}><b>{initials(post.author)}</b><span><strong>{author}</strong><small>{role} · {post.when}</small></span></button>
         ) : (
-          <span className="os-who"><b>{initials(post.author)}</b><span><strong>{post.author}</strong><small>{post.role} · {post.when}</small></span></span>
+          <span className="os-who"><b>{initials(author)}</b><span><strong>{author}</strong><small>{role} · {post.when}</small></span></span>
         )}
         <em className={post.audience === "Openbaar" ? "open" : ""}>{post.audience}</em>
       </header>
-      <h3>{post.title}</h3>
-      <p>{post.body}</p>
+      <h3>{asSector(sector, post.title)}</h3>
+      <p>{asSector(sector, post.body)}</p>
       {post.photo && <button className="os-photo" type="button" onClick={onZoom}><img src={post.photo} alt="" /></button>}
       <p className="os-meta"><button type="button" aria-pressed={liked} onClick={onLike}>{liked ? "Leuk" : "Vind ik leuk"} · {post.likes + (liked ? 1 : 0)}</button><span>Delen staat uit</span></p>
     </>

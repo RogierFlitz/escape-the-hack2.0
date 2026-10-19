@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "../SectorSkin";
 import { OsIcon } from "./icons";
 
 export const OS_APPS = [
@@ -25,6 +27,7 @@ export type OsAppId = (typeof OS_APPS)[number]["id"];
 const FILTERS = ["Alle apps", "Communicatie", "Productiviteit", "Intern", "Beveiliging"] as const;
 
 export function AppCenter({ onOpen }: { onOpen: (id: OsAppId) => void }) {
+  const sector = useSector();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("Alle apps");
   const needle = query.trim().toLowerCase();
@@ -41,7 +44,7 @@ export function AppCenter({ onOpen }: { onOpen: (id: OsAppId) => void }) {
     <div className="os-app">
       <header className="os-head">
         <div>
-          <p className="os-kicker">Nexora Technologies</p>
+          <p className="os-kicker">{asSector(sector, "Nexora Technologies")}</p>
           <h2>App Center</h2>
           <p>Alle applicaties van deze digitale werkplek.</p>
         </div>
@@ -60,8 +63,8 @@ export function AppCenter({ onOpen }: { onOpen: (id: OsAppId) => void }) {
           {apps.map((app) => (
             <button key={app.id} type="button" className="os-tile" onClick={() => onOpen(app.id)}>
               <i><OsIcon id={app.id} uid={`c-${app.id}`} /></i>
-              <strong>{app.name}</strong>
-              <span>{app.blurb}</span>
+              <strong>{asSector(sector, app.name)}</strong>
+              <span>{asSector(sector, app.blurb)}</span>
             </button>
           ))}
         </div>

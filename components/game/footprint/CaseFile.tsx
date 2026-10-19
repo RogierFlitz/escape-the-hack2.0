@@ -1,6 +1,8 @@
 "use client";
 
 import { claims, sources } from "@/lib/game/footprint";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "../SectorSkin";
 import type { Pin } from "./meta";
 
 export function Mission1CaseFile({
@@ -18,6 +20,7 @@ export function Mission1CaseFile({
   onUnlink: (claimId: string) => void;
   onClose: () => void;
 }) {
+  const sector = useSector();
   const mine = pins.find((pin) => pin.id === sourceId);
 
   return (
@@ -40,7 +43,7 @@ export function Mission1CaseFile({
               onClick={() => onAssign(claim.id)}
             >
               <small>{index + 1}. {current ? "deze bron" : owner ? "bezet" : "open"}</small>
-              <strong>{claim.label}</strong>
+              <strong>{asSector(sector, claim.label)}</strong>
             </button>
           );
         })}

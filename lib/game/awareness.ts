@@ -391,6 +391,7 @@ export function trainingReport(input: {
   team: string;
   date: string;
   mode: GameMode;
+  sector?: "general" | "ministeries" | "gemeenten";
   chaptersDone: number;
   hintCount: number;
   awareness: AwarenessState;
@@ -400,6 +401,7 @@ export function trainingReport(input: {
     `Team: ${input.team}`,
     `Datum: ${input.date}`,
     `Modus: ${input.mode === "nis2" ? "NIS2 Training Experience" : input.mode === "awareness" ? "Cyber Awareness" : "Escape Room"}`,
+    `Branche: ${input.sector === "ministeries" ? "Ministeries" : input.sector === "gemeenten" ? "Gemeenten" : "Algemeen"}`,
     "Dit rapport gaat over het team. Het doet geen uitspraak over wat een persoon weet. Dit is geen certificaat en geen oordeel dat de organisatie aan de Cyberbeveiligingswet voldoet.",
     "",
     "Leerdoelen:",

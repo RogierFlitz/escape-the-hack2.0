@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { DemoJumps } from "../home/DemoJumps";
 import { MODE_PLAN, type GameMode } from "@/lib/game/awareness";
+import { SECTOR_PLAN, SECTORS, type Sector } from "@/lib/game/sector";
 import type { AdminSnapshot, Session } from "@/lib/types";
 import { AdminResults } from "../results/ResultsApp";
 
@@ -40,6 +41,7 @@ export function AdminApp() {
   const [penaltySec, setPenaltySec] = useState(30);
   const [teams, setTeams] = useState(["Team 1", "Team 2"]);
   const [mode, setMode] = useState<GameMode>("escape");
+  const [sector, setSector] = useState<Sector>("general");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
   const [resultsView, setResultsView] = useState<"report" | "stage" | null>(null);
@@ -108,7 +110,7 @@ export function AdminApp() {
       const response = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, durationMin: duration, hintPenalty: penaltyOn, hintPenaltySec: penaltySec, teams, mode }),
+        body: JSON.stringify({ name, durationMin: duration, hintPenalty: penaltyOn, hintPenaltySec: penaltySec, teams, mode, sector }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok || !data?.session) {
@@ -203,6 +205,15 @@ export function AdminApp() {
               ))}
               <p className="muted">{MODE_PLAN[mode]}</p>
             </div>
+            <div className="stack" style={{ marginTop: 12 }}>
+              <p className="kicker">Branche</p>
+              <div className="row">
+                {SECTORS.map((item) => (
+                  <button key={item.id} className={sector === item.id ? "chip on" : "chip"} type="button" onClick={() => setSector(item.id)}>{item.label}</button>
+                ))}
+              </div>
+              <p className="muted">{SECTOR_PLAN[sector]}</p>
+            </div>
             <div className="row" style={{ marginTop: 12 }}>
               <button className={penaltyOn ? "chip on" : "chip"} type="button" onClick={() => setPenaltyOn((value) => !value)}>Hints kosten tijd: {penaltyOn ? "aan" : "uit"}</button>
               <label className="row">Seconden<input type="number" min={0} max={300} value={penaltySec} onChange={(event) => setPenaltySec(Number(event.target.value))} style={{ width: 100 }} /></label>
@@ -224,7 +235,7 @@ export function AdminApp() {
                 {sessions.map((session) => (
                   <button key={session.id} className="token" type="button" onClick={() => setActiveId(session.id)}>
                     <strong>{session.name}</strong>
-                    <small>{session.status} · {session.mode ?? "escape"} · {Math.round(session.durationSec / 60)} min</small>
+                    <small>{session.status} · {session.mode ?? "escape"} · {session.sector === "ministeries" ? "ministeries" : session.sector === "gemeenten" ? "gemeenten" : "algemeen"} · {Math.round(session.durationSec / 60)} min</small>
                   </button>
                 ))}
               </div>

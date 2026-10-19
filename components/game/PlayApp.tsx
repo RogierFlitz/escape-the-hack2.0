@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { emptyAwareness, gradeDecision, includesTraining, pendingStoryDecision, prologueComplete, trainingReport } from "@/lib/game/awareness";
 import { puzzleCues } from "@/lib/game/content";
+import { asSector, sectorLine } from "@/lib/game/sector";
+import { SectorProvider, useSector } from "./SectorSkin";
 import { dossier, emptyStory, failLines, missionTitle, nextBeat, noraNote, speech, winLines } from "@/lib/game/story";
 import { savedOfficePieces } from "./Intranet";
 import type { PlayFile, PlaySnapshot } from "@/lib/types";
@@ -288,6 +290,7 @@ export function PlayApp({ code }: { code: string }) {
       team: snap.team.name,
       date: new Date(snap.serverNow).toLocaleDateString("nl-NL"),
       mode: snap.session.mode,
+      sector: snap.session.sector,
       chaptersDone: snap.progress.chaptersDone,
       hintCount: snap.team.hintCount + snap.team.instructorHintCount,
       awareness: snap.awareness,
@@ -348,6 +351,7 @@ export function PlayApp({ code }: { code: string }) {
   }
 
   return (
+    <SectorProvider sector={snap.session.sector ?? "general"}>
     <main className={`${snap.phase === "office" ? "office-root" : "play-root"}${missionOne ? " m1-shell" : ""}${missionTwo ? " m2-shell" : ""} app-shell`}>
       <Pwa />
       <div className="turn">
@@ -469,6 +473,7 @@ export function PlayApp({ code }: { code: string }) {
           <section className="desk">
             <aside className={`panel col rail-left${rail === "mission" ? " open" : ""}`}>
               <p className="kicker">{missionTitle(missionId)}</p>
+              {snap.session.sector && snap.session.sector !== "general" && <p className="muted">{sectorLine(snap.session.sector)}</p>}
               <p className="muted">Nu: {stagePuzzle ? puzzleCues[stagePuzzle.id]?.text : beat.kind === "finale" ? puzzleCues[beat.step]?.text : beat.kind === "social" ? "Kies vijf openbare sporen. Druk daarna op Dit zijn de vijf sporen." : beat.kind === "backup" ? "Vergelijk de kopieën en kies er één. Druk daarna op Deze back-up terugzetten." : spoken?.title ?? "Volg de opdracht op dit scherm."}</p>
               <div className="list" style={{ marginTop: 10 }}>
                 {missionSteps.map((item) => (
@@ -547,7 +552,7 @@ export function PlayApp({ code }: { code: string }) {
                   />
                   {stagePuzzle.hints.length > 0 && (
                     <div className="fp-hints">
-                      {stagePuzzle.hints.map((hint) => <div key={hint} className="token"><small>Hint</small>{hint}</div>)}
+                      {stagePuzzle.hints.map((hint) => <div key={hint} className="token"><small>Hint</small>{asSector(snap.session.sector, hint)}</div>)}
                     </div>
                   )}
                 </div>
@@ -569,7 +574,7 @@ export function PlayApp({ code }: { code: string }) {
                   />
                   {stagePuzzle.hints.length > 0 && (
                     <div className="stack">
-                      {stagePuzzle.hints.map((hint) => <div key={hint} className="token"><small>Hint</small>{hint}</div>)}
+                      {stagePuzzle.hints.map((hint) => <div key={hint} className="token"><small>Hint</small>{asSector(snap.session.sector, hint)}</div>)}
                     </div>
                   )}
                 </div>
@@ -590,7 +595,7 @@ export function PlayApp({ code }: { code: string }) {
             </aside>
           </section>
           <footer className="foot">
-            <div className={`note${note === "Laag hersteld." || note === "Vastgelegd." ? " good" : ""}`}>{spoken ? "" : note}</div>
+            <div className={`note${note === "Laag hersteld." || note === "Vastgelegd." ? " good" : ""}`}>{spoken ? "" : note ? asSector(snap.session.sector, note) : ""}</div>
             <div className="grow" />
             {stagePuzzle && !stagePuzzle.solved && (
               <>
@@ -679,8 +684,8 @@ export function PlayApp({ code }: { code: string }) {
               {story.scenes.map((id) => {
                 const scene = speech(id, snap.team.phishReported);
                 if (!scene) return null;
-                const title = id === "incident" ? "De aanval begint" : scene.title;
-                return <div key={id} className="token"><strong>{title}</strong><small>{scene.kicker}</small></div>;
+                const title = id === "incident" ? "De aanval begint" : asSector(snap.session.sector, scene.title);
+                return <div key={id} className="token"><strong>{title}</strong><small>{asSector(snap.session.sector, scene.kicker)}</small></div>;
               })}
             </div>
             {training && gameMode === "nis2" && (
@@ -707,6 +712,7 @@ export function PlayApp({ code }: { code: string }) {
         </div>
       )}
     </main>
+    </SectorProvider>
   );
 }
 
@@ -795,6 +801,7 @@ function Trophy() {
 }
 
 function FileNote({ file, onClose }: { file: PlayFile; onClose: () => void }) {
+  const sector = useSector();
   return (
     <article className="fp-file">
       <header>
@@ -805,12 +812,12 @@ function FileNote({ file, onClose }: { file: PlayFile; onClose: () => void }) {
         <table className="meta-table">
           <tbody>
             {file.meta.map((row) => (
-              <tr key={row.label}><td className="muted">{row.label}</td><td className="mono">{row.value}</td></tr>
+              <tr key={row.label}><td className="muted">{row.label}</td><td className="mono">{asSector(sector, row.value)}</td></tr>
             ))}
           </tbody>
         </table>
       )}
-      <div className="doc mono">{file.body}</div>
+      <div className="doc mono">{asSector(sector, file.body)}</div>
     </article>
   );
 }

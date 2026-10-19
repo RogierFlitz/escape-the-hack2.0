@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { asSector } from "@/lib/game/sector";
 import { playGlitch, playIncoming, playLock } from "./audio";
 import { speech } from "@/lib/game/story";
+import { useSector } from "./SectorSkin";
 
 type Phase = "file" | "glitch" | "locks" | "incoming" | "kade" | "nora";
 type Rail = "dossier" | "bewijs";
@@ -74,6 +76,7 @@ export function AttackCine({
   onClose: () => void;
 }) {
   const lines = speech("incident", reported)?.lines ?? [];
+  const sector = useSector();
   const [phase, setPhase] = useState<Phase>(resumed ? "nora" : reported ? "glitch" : "file");
   const [fileStep, setFileStep] = useState(0);
   const [warn, setWarn] = useState(0);
@@ -137,11 +140,11 @@ export function AttackCine({
 
   useEffect(() => {
     if (phase !== "kade") return;
-    speak(lines[line] ?? "", audio);
+    speak(asSector(sector, lines[line] ?? ""), audio);
     if (line >= lines.length - 1) return;
     const timer = window.setTimeout(() => setLine((value) => value + 1), 1500);
     return () => window.clearTimeout(timer);
-  }, [phase, line, audio, lines, replay]);
+  }, [phase, line, audio, lines, replay, sector]);
 
   useEffect(() => {
     if (phase !== "nora") return;
@@ -150,11 +153,11 @@ export function AttackCine({
       setNoraLine(NORA.length - 1);
       return;
     }
-    speak(NORA[noraLine] ?? "", audio);
+    speak(asSector(sector, NORA[noraLine] ?? ""), audio);
     if (noraLine >= NORA.length - 1) return;
     const timer = window.setTimeout(() => setNoraLine((value) => value + 1), 1500);
     return () => window.clearTimeout(timer);
-  }, [phase, noraLine, audio]);
+  }, [phase, noraLine, audio, sector]);
 
   const noraReady = phase === "nora" && noraLine >= NORA.length - 1;
   const showOffice = phase === "file" || phase === "glitch";
@@ -175,7 +178,7 @@ export function AttackCine({
     <div className={`cine${showOffice ? " cine-clear" : ""}${phase === "glitch" ? " cine-glitch" : ""}${phase === "kade" ? " cine-fill" : ""}`} role="dialog" aria-label="Beveiligingsincident">
       {phase === "file" && (
         <div className="cine-window">
-          <header><b>planning-nexora-day.xlsx</b><small>Nexora · Documenten</small></header>
+          <header><b>{asSector(sector, "planning-nexora-day.xlsx")}</b><small>{asSector(sector, "Nexora · Documenten")}</small></header>
           <div className="cine-sheet">
             <p>Dokzaal · interne planning</p>
             <p className={fileStep < 2 ? "cine-dim" : ""}>Crew · tijden · indeling</p>
@@ -231,7 +234,7 @@ export function AttackCine({
 
       {phase === "nora" && (
         <NoraProtocol
-          line={NORA[noraLine] ?? ""}
+          line={asSector(sector, NORA[noraLine] ?? "")}
           progress={noraLine / Math.max(1, NORA.length - 1)}
           ready={noraReady}
           reported={reported}
@@ -261,7 +264,8 @@ function NoraProtocol({
   onStart: () => void;
   onClose: () => void;
 }) {
-  const hero = "Ik ben NORA, de digitale noodassistent van Nexora.";
+  const sector = useSector();
+  const hero = asSector(sector, "Ik ben NORA, de digitale noodassistent van Nexora.");
   const checks = [
     ["Systeemcheck", "OK"],
     ["Databeveiliging", "OK"],
@@ -291,7 +295,7 @@ function NoraProtocol({
             <Wave />
             <strong>NORA Online</strong>
             <small>AI-assistent</small>
-            <small>Nexora Technologies</small>
+            <small>{asSector(sector, "Nexora Technologies")}</small>
           </div>
           <ul className="nora-checks">
             {checks.map(([label, value]) => (
@@ -310,7 +314,7 @@ function NoraProtocol({
         <aside>
           <figure className="nora-site">
             <img src="/nora/hq.jpg" alt="" />
-            <b>NEXORA</b>
+            <b>{asSector(sector, "NEXORA")}</b>
           </figure>
           <dl className="nora-place">
             <div><dt>Locatie</dt><dd>Hoofdkantoor</dd></div>
@@ -319,7 +323,7 @@ function NoraProtocol({
         </aside>
       </div>
       <footer className="nora-foot">
-        <h2>Ik ben <span>NORA</span>,<br />de digitale noodassistent van Nexora.</h2>
+        <h2>Ik ben <span>NORA</span>,<br />{asSector(sector, "de digitale noodassistent van Nexora.")}</h2>
         {line && line !== hero && <p className="nora-beat">{line}</p>}
         {reported && ready && <p className="seal">Verdachte mail gemeld · +200. De aanval was al voorbereid.</p>}
         <p className="nora-init">{ready ? "Secure connection ready" : "Initialising secure connection..."}</p>
@@ -364,7 +368,8 @@ function IncidentBoard({
   onContinue: () => void;
 }) {
   const [rail, setRail] = useState<Rail>("dossier");
-  const lines = speech("incident", reported)?.lines ?? [];
+  const sector = useSector();
+  const lines = (speech("incident", reported)?.lines ?? []).map((line) => asSector(sector, line));
   const evidence = reported
     ? [
         ["Afzender", "planning@helix-event.co"],
@@ -376,7 +381,7 @@ function IncidentBoard({
         ["Afzender", "planning@helix-event.co"],
         ["Helix Events", "events@helix-events.nl"],
         ["Verschil", "Een s te weinig. .co in plaats van .nl."],
-        ["Bijlage", "Nexora_Day_Planning.exe is uitgevoerd."],
+        ["Bijlage", asSector(sector, "Nexora_Day_Planning.exe is uitgevoerd.")],
       ];
 
   return (
@@ -447,7 +452,7 @@ function IncidentBoard({
                 <Clip />
                 <span>
                   <small>BIJLAGE</small>
-                  <strong>Nexora_Day_Planning.exe</strong>
+                  <strong>{asSector(sector, "Nexora_Day_Planning.exe")}</strong>
                   <em>2,4 MB · Uitgevoerd</em>
                 </span>
                 <Skull />

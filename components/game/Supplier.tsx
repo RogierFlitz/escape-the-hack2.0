@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "./SectorSkin";
 import {
   accessLog,
   contract,
@@ -51,6 +53,7 @@ export function SupplierDesk({
   busy: boolean;
   onSolve: (payload: unknown) => void;
 }) {
+  const sector = useSector();
   const preferred = puzzleId === "ch2-meta" ? "file" : puzzleId === "ch2-timeline" ? "time" : puzzleId === "ch2-trace" ? "log" : "mail";
   const [section, setSection] = useState(preferred);
   const [openId, setOpenId] = useState<string>("prior");
@@ -159,7 +162,7 @@ export function SupplierDesk({
                   <span className={`sp-ava${mail.from.includes("helix") ? " helix" : ""}`} aria-hidden="true">{initials(senderName(mail.from))}</span>
                   <span>
                     <b>{senderName(mail.from)}</b>
-                    <small>{mail.subject}</small>
+                    <small>{asSector(sector, mail.subject)}</small>
                     <em>{mail.from}</em>
                   </span>
                   <span className="sp-when">
@@ -200,8 +203,8 @@ export function SupplierDesk({
             <article className="sp-contract">
               <img src="/m2/port.jpg" alt="" />
               <p className="kicker">Leveranciersdossier</p>
-              <h2>{contract.party}</h2>
-              <p>{contract.work}</p>
+              <h2>{asSector(sector, contract.party)}</h2>
+              <p>{asSector(sector, contract.work)}</p>
               <p>Contract {contract.ref}</p>
               <p className="sp-addr">{contract.contact}</p>
               <p>{contract.note}</p>
@@ -283,6 +286,7 @@ function Letter({
   onPoint: () => void;
   onAdd: (id: string) => void;
 }) {
+  const sector = useSector();
   const helixMail = mail.from.endsWith("@helix-events.nl");
   const signed = mail.body.includes("Helix");
   return (
@@ -291,15 +295,15 @@ function Letter({
         <span className={`sp-ava${mail.from.includes("helix") ? " helix" : ""}`} aria-hidden="true">{initials(senderName(mail.from))}</span>
         <div>
           <p><b>Van</b> {senderName(mail.from)} <span className="sp-addr">&lt;{mail.from}&gt;</span></p>
-          <p><b>Aan</b> <span className="sp-addr">{mail.to}</span></p>
+          <p><b>Aan</b> <span className="sp-addr">{asSector(sector, mail.to)}</span></p>
         </div>
         <div className="sp-meta">
           <span>{mail.when}</span>
           <i className={`sp-badge${mailKind(mail.from) === "intern" ? " intern" : ""}`}>{mailKind(mail.from) === "intern" ? "Intern" : "Extern"}</i>
         </div>
       </div>
-      <h2>{mail.subject}</h2>
-      <p className="sp-copy">{mail.body}</p>
+      <h2>{asSector(sector, mail.subject)}</h2>
+      <p className="sp-copy">{asSector(sector, mail.body)}</p>
       <div className="sp-actions">
         <button className="sp-headbtn" type="button" aria-expanded={headers} onClick={onHeaders}>{headers ? "Bericht" : "Headers bekijken"}</button>
         {showInspect && (
@@ -385,6 +389,7 @@ function SearchIcon() {
 }
 
 function FileView({ tab, onTab }: { tab: "meta" | "body" | "compare" | "scan"; onTab: (tab: "meta" | "body" | "compare" | "scan") => void }) {
+  const sector = useSector();
   return (
     <article className="sp-fileview">
       <header>
@@ -404,7 +409,7 @@ function FileView({ tab, onTab }: { tab: "meta" | "body" | "compare" | "scan"; o
             <dd>gemaakt {fileMeta.created}</dd>
             <dd>gewijzigd {fileMeta.modified}</dd>
             <dd>{fileMeta.author}</dd>
-            <dd>{fileMeta.tool}</dd>
+            <dd>{asSector(sector, fileMeta.tool)}</dd>
           </dl>
           <dl>
             <dt>Eerdere planning</dt>
@@ -412,22 +417,22 @@ function FileView({ tab, onTab }: { tab: "meta" | "body" | "compare" | "scan"; o
             <dd>gemaakt {realMeta.created}</dd>
             <dd>gewijzigd {realMeta.modified}</dd>
             <dd>{realMeta.author}</dd>
-            <dd>{realMeta.tool}</dd>
+            <dd>{asSector(sector, realMeta.tool)}</dd>
           </dl>
         </div>
       )}
       {tab === "body" && (
-        <ol>{fakePlan.map((line) => <li key={line}>{line}</li>)}</ol>
+        <ol>{fakePlan.map((line) => <li key={line}>{asSector(sector, line)}</li>)}</ol>
       )}
       {tab === "compare" && (
         <div className="sp-split">
           <div>
             <p>v3, eerder ontvangen</p>
-            <ol>{realPlan.map((line) => <li key={line}>{line}</li>)}</ol>
+            <ol>{realPlan.map((line) => <li key={line}>{asSector(sector, line)}</li>)}</ol>
           </div>
           <div>
             <p>xlsx uit de nacht</p>
-            <ol>{fakePlan.map((line) => <li key={line}>{line}</li>)}</ol>
+            <ol>{fakePlan.map((line) => <li key={line}>{asSector(sector, line)}</li>)}</ol>
           </div>
         </div>
       )}

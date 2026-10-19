@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { asSector } from "@/lib/game/sector";
 import { playSecureConnect } from "./audio";
+import { useSector } from "./SectorSkin";
 
 type Cue = { t: number; text: string };
 
@@ -172,6 +174,8 @@ export function Briefing({
   onToggleAudio: () => void;
   onStart: () => void;
 }) {
+  const sector = useSector();
+  const skin = (text: string) => asSector(sector, text);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scriptRef = useRef<HTMLDivElement>(null);
   const [linked, setLinked] = useState(false);
@@ -300,11 +304,11 @@ export function Briefing({
             <div className={`cb-still${chapter === "dreiging" ? " is-alert" : ""}`}>
               <img src={current.image} alt="" />
               <div className="cb-still-card" ref={chapter === "briefing" ? scriptRef : undefined}>
-                <p>{chapter === "briefing" ? "Tekstbriefing" : current.title}</p>
+                <p>{chapter === "briefing" ? "Tekstbriefing" : skin(current.title)}</p>
                 {chapter === "briefing" ? (
-                  SCRIPT.map((line) => <span key={line.t}>{line.text}</span>)
+                  SCRIPT.map((line) => <span key={line.t}>{skin(line.text)}</span>)
                 ) : (
-                  <span>{"text" in current ? current.text : ""}</span>
+                  <span>{skin("text" in current ? current.text : "")}</span>
                 )}
               </div>
             </div>
@@ -313,10 +317,10 @@ export function Briefing({
           {showVideo && (
             <p className="cb-name">
               <b>Mara de Vries</b>
-              <small>Operationeel manager · Nexora Technologies</small>
+              <small>Operationeel manager · {skin("Nexora Technologies")}</small>
             </p>
           )}
-          {showVideo && captions && caption && <p className="cb-cap" aria-live="polite">{caption}</p>}
+          {showVideo && captions && caption && <p className="cb-cap" aria-live="polite">{skin(caption)}</p>}
           {showVideo && (
             <button
               type="button"
@@ -337,8 +341,8 @@ export function Briefing({
       <aside className="cb-dossier" aria-label="Situatiedossier">
         <header className="cb-dhead">
           <div className="cb-nexora">
-            <span className="cb-hex" aria-hidden="true">N</span>
-            <strong>Nexora<small>Technologies</small></strong>
+            <span className="cb-hex" aria-hidden="true">{sector === "gemeenten" ? "G" : sector === "ministeries" ? "M" : "N"}</span>
+            <strong>{skin("Nexora Technologies")}</strong>
           </div>
           <p className="cb-conf">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10V7a4 4 0 0 1 8 0v3M6 10h12v10H6z" /></svg>
@@ -351,19 +355,19 @@ export function Briefing({
             <h2>Verhoogde digitale dreiging</h2>
           </div>
           <figure>
-            <img src="/brief-dock.jpg" alt="De Dokzaal, locatie van Nexora Day" />
-            <figcaption>Dokzaal · Nexora Day</figcaption>
+            <img src="/brief-dock.jpg" alt={skin("De Dokzaal, locatie van Nexora Day")} />
+            <figcaption>Dokzaal · {skin("Nexora Day")}</figcaption>
           </figure>
         </div>
         <p className="cb-lead">
-          Tijdens Nexora Day zijn er verdachte digitale signalen gedetecteerd. Onze systemen vertonen afwijkend gedrag en er is een reëel risico op een gecoördineerde cyberaanval.
+          {skin("Tijdens Nexora Day zijn er verdachte digitale signalen gedetecteerd. Onze systemen vertonen afwijkend gedrag en er is een reëel risico op een gecoördineerde cyberaanval.")}
         </p>
         <p className="cb-status">Status: verhoogde digitale dreiging</p>
         <ul className="cb-facts">
           {FACTS.map((fact) => (
-            <li key={fact.label} aria-label={"named" in fact ? fact.named : `${fact.label}: ${fact.value}`}>
+            <li key={fact.label} aria-label={skin("named" in fact && fact.named ? fact.named : `${fact.label}: ${fact.value}`)}>
               <FactIcon d={fact.d} />
-              <span>{fact.label}<b>{fact.value}</b></span>
+              <span>{fact.label}<b>{skin(fact.value)}</b></span>
             </li>
           ))}
         </ul>
@@ -394,7 +398,7 @@ export function Briefing({
               onClick={() => setChapter(item.id)}
             >
               <img src={item.image} alt="" />
-              <span><b>{index + 1}. {item.title}</b><small>{item.sub}</small></span>
+              <span><b>{index + 1}. {item.title}</b><small>{skin(item.sub)}</small></span>
             </button>
           ))}
         </div>

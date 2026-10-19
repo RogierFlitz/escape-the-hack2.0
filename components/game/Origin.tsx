@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "./SectorSkin";
 import {
   BREACH_LINE,
   BRIEFING_LINES,
@@ -111,6 +113,8 @@ export function OriginPrologue({
   const [step, setStep] = useState(0);
   const [glitch, setGlitch] = useState(false);
   const [typing, setTyping] = useState({ step: 0, count: 0 });
+  const sector = useSector();
+  const brief = useMemo(() => BRIEFING_LINES.map((line) => asSector(sector, line)), [sector]);
   const scene = PROLOGUE_SCENES[index];
   const typed = scene === "brief" && !reduce && typing.step === step ? typing.count : 0;
 
@@ -126,9 +130,9 @@ export function OriginPrologue({
 
   useEffect(() => {
     if (!scene) return;
-    const line = scene === "brief" ? BRIEFING_LINES[step] : scene === "ghost" ? GHOST_LINE : scene === "osint" ? OSINT_LINES[0] : scene === "human" ? TRUST_LINES[Math.min(step, TRUST_LINES.length - 1)] : scene === "breach" ? BREACH_LINE : scene === "market" ? MARKET_LINES[Math.min(step, MARKET_LINES.length - 1)] : "";
-    if (line) speak(line, audio);
-  }, [scene, step, audio]);
+    const line = scene === "brief" ? brief[step] : scene === "ghost" ? GHOST_LINE : scene === "osint" ? OSINT_LINES[0] : scene === "human" ? TRUST_LINES[Math.min(step, TRUST_LINES.length - 1)] : scene === "breach" ? BREACH_LINE : scene === "market" ? MARKET_LINES[Math.min(step, MARKET_LINES.length - 1)] : "";
+    if (line) speak(asSector(sector, line), audio);
+  }, [scene, step, audio, brief, sector]);
 
   useEffect(() => {
     if (!scene) return;
@@ -139,10 +143,10 @@ export function OriginPrologue({
         const timer = window.setTimeout(() => finish("brief"), 7000);
         return () => window.clearTimeout(timer);
       }
-      const line = BRIEFING_LINES[step] ?? "";
-      const hold = step < BRIEFING_LINES.length - 1 ? 680 : 1300;
+      const line = brief[step] ?? "";
+      const hold = step < brief.length - 1 ? 680 : 1300;
       const timer = window.setTimeout(() => {
-        if (step < BRIEFING_LINES.length - 1) setStep((value) => value + 1);
+        if (step < brief.length - 1) setStep((value) => value + 1);
         else finish("brief");
       }, briefTypeMs(line) + hold);
       return () => window.clearTimeout(timer);
@@ -182,11 +186,11 @@ export function OriginPrologue({
       return () => window.clearTimeout(timer);
     }
     return () => window.clearTimeout(wait(0));
-  }, [scene, step, reduce, glitch]);
+  }, [scene, step, reduce, glitch, brief]);
 
   useEffect(() => {
     if (scene !== "brief" || reduce) return;
-    const line = BRIEFING_LINES[step] ?? "";
+    const line = brief[step] ?? "";
     if (!line) return;
     const duration = briefTypeMs(line);
     const tick = duration / line.length;
@@ -199,7 +203,7 @@ export function OriginPrologue({
       if (next >= line.length) window.clearInterval(timer);
     }, tick);
     return () => window.clearInterval(timer);
-  }, [scene, step, reduce]);
+  }, [scene, step, reduce, brief]);
 
   function finish(id: string) {
     sessionStorage.setItem(`eth-origin-${code}`, id);
@@ -213,7 +217,7 @@ export function OriginPrologue({
     <section className={`og${scene === "brief" ? " og-ops" : ""}${glitch && !reduce ? " og-glitch" : ""}`} aria-label="De oorsprong">
       {scene === "brief" && <OpsField />}
       <header className="og-top">
-        <strong>NEXORA TECHNOLOGIES</strong>
+        <strong>{asSector(sector, "NEXORA TECHNOLOGIES")}</strong>
         <span>SECURITY OPERATIONS</span>
         <button type="button" onClick={onToggleAudio}>{audio ? "geluid aan" : "geluid uit"}</button>
         <button type="button" onClick={() => { sessionStorage.setItem(`eth-origin-${code}`, "skip"); onSeen("skip"); }}>Naar Mara</button>
@@ -224,7 +228,7 @@ export function OriginPrologue({
           <div className="og-brief">
             <p className="kicker">CONFIDENTIAL INCIDENT BRIEFING</p>
             <div className="og-lines">
-              {(reduce ? BRIEFING_LINES : BRIEFING_LINES.slice(0, step + 1)).map((line, lineIndex) => {
+              {(reduce ? brief : brief.slice(0, step + 1)).map((line, lineIndex) => {
                 const active = !reduce && lineIndex === step;
                 const visible = active ? line.slice(0, typed) : line;
                 return (

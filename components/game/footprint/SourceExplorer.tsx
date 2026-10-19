@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { sources, type Source } from "@/lib/game/footprint";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "../SectorSkin";
 import { filters, readLabel, sourcePhoto, typeLabel, type FilterId, type Pin } from "./meta";
 
 export function Mission1SourceExplorer({
@@ -28,11 +30,13 @@ export function Mission1SourceExplorer({
     document.getElementById(`m1-src-${openId}`)?.scrollIntoView({ block: "nearest" });
   }, [openId]);
 
+  const sector = useSector();
   const needle = query.trim().toLowerCase();
   const visible = sources.filter((source) => {
     if (filter !== "all" && source.kind !== filter) return false;
     if (!needle) return true;
-    return `${source.title} ${source.author} ${source.body} ${source.outlet}`.toLowerCase().includes(needle);
+    const hay = asSector(sector, `${source.title} ${source.author} ${source.body} ${source.outlet}`);
+    return hay.toLowerCase().includes(needle);
   });
 
   return (
@@ -83,14 +87,15 @@ function SourceCard({
   status: string;
   onOpen: () => void;
 }) {
+  const sector = useSector();
   const photo = sourcePhoto[source.id];
   return (
     <button id={`m1-src-${source.id}`} className={`m1-card${active ? " on" : ""}`} type="button" aria-current={active ? "true" : undefined} data-kind={source.kind} data-status={status} onClick={onOpen}>
       {photo ? <img src={photo} alt="" /> : <span className="m1-thumb" aria-hidden><KindIcon kind={source.kind} /></span>}
       <span className="m1-card-copy">
         <small>{typeLabel[source.kind]}</small>
-        <strong>{source.title}</strong>
-        <em>{source.author} · {source.when}</em>
+        <strong>{asSector(sector, source.title)}</strong>
+        <em>{asSector(sector, source.author)} · {source.when}</em>
         <i>{status}</i>
       </span>
     </button>

@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   time_adjust_sec INTEGER NOT NULL DEFAULT 0,
   created_at BIGINT NOT NULL,
   ended_at BIGINT,
-  mode TEXT NOT NULL DEFAULT 'escape'
+  mode TEXT NOT NULL DEFAULT 'escape',
+  sector TEXT NOT NULL DEFAULT 'general'
 );
 CREATE TABLE IF NOT EXISTS teams (
   id TEXT PRIMARY KEY,
@@ -51,6 +52,7 @@ const MIGRATIONS = [
   "ALTER TABLE teams ADD COLUMN phish_reported INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE teams ADD COLUMN story_json TEXT NOT NULL DEFAULT '{}'",
   "ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'escape'",
+  "ALTER TABLE sessions ADD COLUMN sector TEXT NOT NULL DEFAULT 'general'",
   "ALTER TABLE teams ADD COLUMN awareness_json TEXT NOT NULL DEFAULT '{}'",
 ];
 

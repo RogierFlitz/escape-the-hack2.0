@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listSessions } from "@/lib/db/store";
 import { parseMode } from "@/lib/game/awareness";
+import { parseSector } from "@/lib/game/sector";
 import { createSession } from "@/lib/game/actions";
 import { adminGuard, clip } from "@/lib/http";
 
@@ -24,6 +25,7 @@ export async function POST(request: Request) {
     hintPenaltySec?: number;
     teams?: string[];
     mode?: string;
+    sector?: string;
   } | null;
   const teams = (body?.teams ?? []).map((name) => clip(name, 32)).filter(Boolean);
   const durationMin = Number(body?.durationMin);
@@ -45,6 +47,7 @@ export async function POST(request: Request) {
       hintPenaltySec: Math.round(penalty),
       teamNames: teams,
       mode: parseMode(body.mode),
+      sector: parseSector(body.sector),
     });
     return NextResponse.json({ ok: true, session: created.session, teams: created.teams });
   } catch (error) {

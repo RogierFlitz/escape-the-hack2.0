@@ -9,6 +9,7 @@ import { PUZZLE_IDS, puzzleCues } from "../lib/game/content";
 import { demoBeat, demoBlocked } from "../lib/game/demo";
 import { finaleSessions } from "../lib/game/shutdown";
 import { applyStory, emptyStory, nextBeat } from "../lib/game/story";
+import { asSector } from "../lib/game/sector";
 import { allSolved, currentChapterId, scoreBreakdown } from "../lib/scoring";
 import { baseRemainingSec, teamRemainingSec } from "../lib/time";
 import type { Session, Team } from "../lib/types";
@@ -20,6 +21,7 @@ const session: Session = {
   hintPenalty: true,
   hintPenaltySec: 30,
   mode: "escape",
+  sector: "general",
   status: "live",
   startedAt: 1_000_000,
   pauseStartedAt: null,
@@ -520,4 +522,18 @@ test("de NIS2-evaluatie wordt per situatie beoordeeld", () => {
   assert.equal(report.includes("NIS2-compliant"), false);
   assert.match(report, /geen certificaat/);
   assert.match(report, /juridische verificatie/i);
+});
+
+test("een branche maakt het doelwit herkenbaar en laat de antwoorden staan", () => {
+  const ministry = asSector("ministeries", "Bij Nexora Technologies loopt de voorbereiding op Nexora Day. De lijn moet bij Nexora beginnen.");
+  assert.match(ministry, /Ministerie van Verbindingen/);
+  assert.match(ministry, /Departementsdag/);
+  assert.match(ministry, /bij het ministerie beginnen/);
+  assert.equal(ministry.includes("Nexora"), false);
+  const city = asSector("gemeenten", "Gemeente? Nexora Technologies en Nexora Day.");
+  assert.match(city, /Gemeente Havenstad/);
+  assert.match(city, /Gemeentedag/);
+  const clues = asSector("ministeries", "helix-svc DOCK-244 ROUTE-7 SEAL HX-19 kluis-nacht");
+  assert.equal(clues, "helix-svc DOCK-244 ROUTE-7 SEAL HX-19 kluis-nacht");
+  assert.equal(asSector("general", "Nexora Day"), "Nexora Day");
 });

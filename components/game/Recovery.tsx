@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "./SectorSkin";
 import { cipherText, puzzleCues, symbolPalette, symbolRows } from "@/lib/game/content";
 import {
   backupReports,
@@ -281,6 +283,7 @@ function Files({
   busy: boolean;
   onSolve: () => void;
 }) {
+  const sector = useSector();
   const [query, setQuery] = useState("");
   const [folder, setFolder] = useState("all");
   const folders = ["all", ...new Set(vaultFiles.map((file) => file.folder))];
@@ -306,7 +309,7 @@ function Files({
         <div className="m4-filters">
           {folders.map((id) => (
             <button key={id} className={folder === id ? "on" : ""} type="button" onClick={() => setFolder(id)}>
-              {id === "all" ? "Alle" : id}
+              {id === "all" ? "Alle" : asSector(sector, id)}
             </button>
           ))}
         </div>
@@ -316,7 +319,7 @@ function Files({
               <Glyph name={file.name} locked={!file.readable} />
               <span>
                 <b>{file.name}</b>
-                <small>{file.version} · {file.modified} · {file.folder}</small>
+                <small>{file.version} · {file.modified} · {asSector(sector, file.folder)}</small>
               </span>
               <span>
                 <i className={`m4-badge${file.readable ? " ok" : ""}`}>{file.readable ? "Leesbaar" : "Versleuteld"}</i>
@@ -357,6 +360,7 @@ function Files({
 }
 
 function Preview({ file, marking, marked, onToggle }: { file: VaultFile; marking: boolean; marked: boolean; onToggle: () => void }) {
+  const sector = useSector();
   const kind = file.name.split(".").pop() ?? "bestand";
   return (
     <div className="m4-preview">
@@ -365,12 +369,12 @@ function Preview({ file, marking, marked, onToggle }: { file: VaultFile; marking
         <i className={`m4-badge${file.readable ? " ok" : ""}`}>{file.readable ? "Leesbaar" : "Versleuteld"}</i>
       </header>
       <div className="m4-view">
-        {file.readable ? <Readable kind={kind} text={file.preview} /> : <Locked kind={kind} text={file.preview} />}
+        {file.readable ? <Readable kind={kind} text={asSector(sector, file.preview)} /> : <Locked kind={kind} text={asSector(sector, file.preview)} />}
       </div>
       <div className="m4-meta">
         <span><b>Versie</b>{file.version}</span>
         <span><b>Gewijzigd</b>{file.modified}</span>
-        <span><b>Map</b>{file.folder}</span>
+        <span><b>Map</b>{asSector(sector, file.folder)}</span>
         <span><b>Controle</b>{file.check}</span>
       </div>
       {marking && (

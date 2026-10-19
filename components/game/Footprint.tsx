@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { boardEvidence, boardQuestions, reconChoices } from "@/lib/game/footprint";
+import { asSector } from "@/lib/game/sector";
+import { useSector } from "./SectorSkin";
 import { TaskCue } from "./puzzles/ui";
 import { clearDraft, useDraft } from "./footprint/draft";
 
@@ -93,6 +95,7 @@ export function BoardPuzzle({
   busy: boolean;
   onSolve: (payload: unknown) => void;
 }) {
+  const sector = useSector();
   const [links, setLinks] = useDraft<Record<string, string>>("ch1-nodes", {});
   const [picked, setPicked] = useState<string | null>(null);
   useEffect(() => {
@@ -122,7 +125,7 @@ export function BoardPuzzle({
                 type="button"
                 onClick={() => setPicked((current) => (current === item.id ? null : item.id))}
               >
-                {item.label}
+                {asSector(sector, item.label)}
               </button>
             );
           })}
@@ -136,8 +139,8 @@ export function BoardPuzzle({
             return (
               <div key={question.id} className={`fp-q${evidence ? " linked" : ""}${picked ? " armed" : ""}`}>
                 <button type="button" onClick={() => assign(question.id)}>
-                  <small>{question.label}</small>
-                  <strong>{evidence?.label ?? (picked ? "koppelen" : "—")}</strong>
+                  <small>{asSector(sector, question.label)}</small>
+                  <strong>{evidence ? asSector(sector, evidence.label) : (picked ? "koppelen" : "—")}</strong>
                 </button>
                 {evidence && (
                   <button
@@ -172,6 +175,7 @@ export function ReconPuzzle({
   busy: boolean;
   onSolve: (payload: unknown) => void;
 }) {
+  const sector = useSector();
   const [file, setFile] = useDraft<{ event: string; name: string; step: string }>("ch1-ports", { event: "", name: "", step: "" });
   useEffect(() => {
     if (solved) clearDraft("ch1-ports");
@@ -183,14 +187,14 @@ export function ReconPuzzle({
       <TaskCue id="ch1-ports" />
       <div className="fp-zip">
         <header>
-          <strong>recon-nexora.zip</strong>
+          <strong>{asSector(sector, "recon-nexora.zip")}</strong>
           <span>notes.txt · gedeeltelijk</span>
         </header>
         <pre>{`KADE / prep
 public_sources: combined
-target_event: ${file.event ? reconChoices.event.find((item) => item.id === file.event)?.label : "████"}
-trusted_name: ${file.name ? reconChoices.name.find((item) => item.id === file.name)?.label : "████"}
-next_step:    ${file.step ? reconChoices.step.find((item) => item.id === file.step)?.label : "████"}
+target_event: ${file.event ? asSector(sector, reconChoices.event.find((item) => item.id === file.event)?.label ?? "") : "████"}
+trusted_name: ${file.name ? asSector(sector, reconChoices.name.find((item) => item.id === file.name)?.label ?? "") : "████"}
+next_step:    ${file.step ? asSector(sector, reconChoices.step.find((item) => item.id === file.step)?.label ?? "") : "████"}
 network_entry: [nog niet in dit bestand]`}</pre>
       </div>
       <aside className="fp-side">
@@ -216,13 +220,14 @@ function Field({
   options: readonly { id: string; label: string }[];
   onPick: (id: string) => void;
 }) {
+  const sector = useSector();
   return (
     <div className="fp-field">
       <p>{label}</p>
       <div className="fp-chips">
         {options.map((option) => (
           <button key={option.id} className={`fp-chip${value === option.id ? " on" : ""}`} type="button" onClick={() => onPick(option.id)}>
-            {option.label}
+            {asSector(sector, option.label)}
           </button>
         ))}
       </div>
