@@ -214,7 +214,7 @@ function SessionCase({
   return (
     <div className="soc-case">
       <p className="kicker">Onderzoek</p>
-      {cue && <p className="soc-cue">{cue.text}</p>}
+      {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
         <p>Welke sessie wijkt af?</p>
         <div className="soc-picks">
@@ -257,7 +257,7 @@ function RouteCase({
   return (
     <div className="soc-case">
       <p className="kicker">Sprongen</p>
-      {cue && <p className="soc-cue">{cue.text}</p>}
+      {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
         {hops.map((hop) => (
           <p key={hop.id}><b>{hop.time}</b> {hop.text}</p>
@@ -289,7 +289,7 @@ function IsolateCase({
   return (
     <div className="soc-case">
       <p className="kicker">Isolatie</p>
-      {cue && <p className="soc-cue">{cue.text}</p>}
+      {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
         <p>Tijdelijk. De sessie blijft bestaan tot de finale.</p>
         {notes.map((item) => <p key={item.id}>{item.preview}</p>)}
@@ -322,7 +322,7 @@ function RestoreCase({
   return (
     <div className="soc-case">
       <p className="kicker">Startvolgorde</p>
-      {cue && <p className="soc-cue">{cue.text}</p>}
+      {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
         <p>Een systeem start pas als datgene waar het op wacht al draait.</p>
         {order.map((id, index) => {

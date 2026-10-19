@@ -153,7 +153,7 @@ export function RecoveryDesk({
           <span className="warn">EDGE beperkt</span>
           <span className="up">LOG online</span>
         </div>
-        {cue && <p className="m4-cue">{cue.text}</p>}
+        {cue && <p className="m4-cue"><b>Nu doen. </b>{cue.text}</p>}
         {puzzleId === "ch4-symbols" && (
           <details className="m4-nora">
             <summary>NORA</summary>

@@ -460,7 +460,7 @@ function Case({
 function Invest({ kicker, cue }: { kicker: string; cue?: string }) {
   return (
     <header className="sp-invest">
-      <p className="kicker">{kicker}</p>
+      <p className="kicker">Nu doen · {kicker}</p>
       {cue ? <p>{cue}</p> : null}
     </header>
   );

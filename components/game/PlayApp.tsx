@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { emptyAwareness, gradeDecision, includesTraining, pendingStoryDecision, prologueComplete, trainingReport } from "@/lib/game/awareness";
+import { puzzleCues } from "@/lib/game/content";
 import { dossier, emptyStory, failLines, missionTitle, nextBeat, noraNote, speech, winLines } from "@/lib/game/story";
 import { savedOfficePieces } from "./Intranet";
 import type { PlayFile, PlaySnapshot } from "@/lib/types";
@@ -468,7 +469,7 @@ export function PlayApp({ code }: { code: string }) {
           <section className="desk">
             <aside className={`panel col rail-left${rail === "mission" ? " open" : ""}`}>
               <p className="kicker">{missionTitle(missionId)}</p>
-              <p className="muted">Nu: {spoken?.title ?? stagePuzzle?.title ?? (beat.kind === "social" ? "Vijf openbare sporen" : beat.kind === "backup" ? "Schone back-up" : beat.kind === "finale" ? "Laatste toegang" : "het huidige spoor")}</p>
+              <p className="muted">Nu: {stagePuzzle ? puzzleCues[stagePuzzle.id]?.text : beat.kind === "finale" ? puzzleCues[beat.step]?.text : beat.kind === "social" ? "Kies vijf openbare sporen. Druk daarna op Dit zijn de vijf sporen." : beat.kind === "backup" ? "Vergelijk de kopieën en kies er één. Druk daarna op Deze back-up terugzetten." : spoken?.title ?? "Volg de opdracht op dit scherm."}</p>
               <div className="list" style={{ marginTop: 10 }}>
                 {missionSteps.map((item) => (
                   <div key={item.id} className={`task${item.id === stagePuzzle?.id ? " on" : ""}${item.solved ? " done" : ""}`}>

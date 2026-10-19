@@ -30,11 +30,10 @@ export function Mission1Briefing({
           <b>NORA</b>
           <span>Onderzoeksbriefing</span>
         </p>
-        <p>KADE verzamelde openbare informatie over Nexora. Onderzoek de bronnen en koppel ze aan de zes vragen.</p>
+        <p className="m1-now"><b>Nu doen.</b> {text ?? "Open een bron, koppel die aan een vraag en dien de verbanden in."}</p>
         {open && (
           <div className="m1-more">
             <p>{noraArchive}</p>
-            {text && <p>{text}</p>}
             {action && <p>Handeling: {action}.</p>}
           </div>
         )}

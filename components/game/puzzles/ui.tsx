@@ -13,8 +13,8 @@ export function TaskCue({ id, nora }: { id: string; nora?: string }) {
   return (
     <div className="fp-cue" data-cue={id}>
       {nora ? <p className="fp-nora">{nora}</p> : null}
+      <p className="fp-act">Nu doen</p>
       <p>{cue.text}</p>
-      <p className="fp-act">{cue.action}</p>
     </div>
   );
 }

@@ -45,6 +45,7 @@
 .m1-nora p { margin: 0; }
 .m1-nora b { margin-right: 8px; }
 .m1-nora span { color: #8fb0c8; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.m1-now { color: #e7f6ff; font-size: 15px; line-height: 1.4; }
 .m1-more { display: grid; gap: 6px; margin-top: 6px; color: #c5d7ea; }
 .m1-modes { display: flex; gap: 6px; flex: 0 0 auto; }
 .m1-modes button, .m1-nora > button {

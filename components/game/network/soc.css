@@ -166,7 +166,8 @@
 .soc-inspect dl div { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
 .soc-inspect dt { color: #8ea3b8; }
 .soc-inspect dd { margin: 0; }
-.soc-meta, .soc-look, .soc-cue, .soc-count { color: #9eb6c8; font-size: 12px; margin: 0; }
+.soc-meta, .soc-look, .soc-count { color: #9eb6c8; font-size: 12px; margin: 0; }
+.soc-cue { color: #e7f6ff; font-size: 15px; line-height: 1.4; margin: 0; }
 .soc-look { color: #f0c14a; }
 .soc-ask { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
 .soc-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }

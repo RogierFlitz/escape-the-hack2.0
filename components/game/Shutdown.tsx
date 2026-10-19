@@ -173,7 +173,7 @@ export function ShutdownDesk({
           <span className="up">LOG online</span>
           <span className={step === "shutdown" ? "up" : "warn"}>{step === "shutdown" ? "Herstel gecontroleerd" : "Herstel open"}</span>
         </div>
-        {cue && <p className="m6-cue">{cue.text}</p>}
+        {cue && <p className="m6-cue"><b>Nu doen. </b>{cue.text}</p>}
         {step === "access" && (
           <details className="m6-kade">
             <summary>NORA</summary>

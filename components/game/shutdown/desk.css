@@ -29,7 +29,7 @@
 .m6-status .up { color: #7ddeb0; border-color: #1d4a3c; }
 .m6-status .bad { color: #ff8d96; border-color: #6a2430; }
 .m6-status .warn { color: #ffb020; border-color: #6a4a16; }
-.m6-cue { margin: 0; min-width: 0; flex: 1; color: #c5d7e8; font-size: 13px; line-height: 1.35; }
+.m6-cue { margin: 0; min-width: 0; flex: 1; color: #e7f6ff; font-size: 15px; line-height: 1.4; }
 .m6-kade { flex: 0 0 auto; }
 .m6-kade summary { cursor: pointer; color: #ffb4bc; border-color: #6a2430; list-style: none; }
 .m6-kade p { margin: 6px 0 0; max-width: 420px; color: #f3d5d8; font-size: 13px; }
