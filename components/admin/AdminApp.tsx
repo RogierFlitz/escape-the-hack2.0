@@ -137,10 +137,10 @@ export function AdminApp() {
   if (!authed) {
     return (
       <main className="scroll-page">
-        <form className="panel join" style={{ maxWidth: 420, margin: "10vh auto" }} onSubmit={login}>
+        <form className="panel admin-login" style={{ maxWidth: 420, margin: "10vh auto" }} onSubmit={login}>
           <p className="kicker">Flitz-events</p>
           <h1>Instructeur</h1>
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Wachtwoord" data-testid="admin-password" style={{ letterSpacing: 0, textTransform: "none", fontSize: 18 }} />
+          <input type="password" name="password" autoComplete="current-password" autoCapitalize="off" autoCorrect="off" spellCheck={false} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Wachtwoord" data-testid="admin-password" />
           {configError && <p className="note">{configError}</p>}
           {loginError && <p className="note">{loginError}</p>}
           {devHint && !configError && <p className="muted">Lokaal ontwikkelwachtwoord: flitz-admin. Zet ADMIN_PASSWORD voor een echt evenement. In productie is er geen standaardwachtwoord.</p>}

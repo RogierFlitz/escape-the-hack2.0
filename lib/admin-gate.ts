@@ -33,9 +33,9 @@ export function checkPassword(input: string) {
   const configured = readEnv("ADMIN_PASSWORD");
   if (readEnv("NODE_ENV") === "production") {
     if (!configured) return false;
-    return safeEqual(input, configured);
+    return safeEqual(input.trim(), configured);
   }
-  return safeEqual(input, configured || "flitz-admin");
+  return safeEqual(input.trim(), configured || "flitz-admin");
 }
 
 export function requestIsHttps(request: { url: string; headers: { get(name: string): string | null } }) {
