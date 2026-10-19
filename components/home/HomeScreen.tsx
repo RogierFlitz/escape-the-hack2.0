@@ -37,7 +37,7 @@ export function HomeScreen() {
         <form className="panel join" onSubmit={join}>
           <p className="kicker">Teamtoegang</p>
           <label htmlFor="code">Deelnamecode</label>
-          <input id="code" data-testid="join-code" autoCapitalize="characters" autoCorrect="off" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="K7MP" />
+          <input id="code" data-testid="join-code" autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={12} value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="K7MP4Q2R" />
           {error && <p className="note">{error}</p>}
           <button className="btn btn-primary" data-testid="join-submit" type="submit">Systeem openen</button>
           <a className="linkish" href="/admin">Instructeur</a>

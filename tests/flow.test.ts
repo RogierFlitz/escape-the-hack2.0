@@ -3,7 +3,9 @@ import { mkdtempSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { adminConfigError, checkPassword, clearLoginFailures, loginLimited, noteLoginFailure, requestIsHttps, resetLoginLimits, usingDefaultPassword } from "../lib/admin-gate";
+import { adminConfigError, checkPassword, clearLoginFailures, loginClientKey, loginLimited, noteLoginFailure, requestIsHttps, resetLoginLimits, usingDefaultPassword } from "../lib/admin-gate";
+import { makeCode } from "../lib/codes";
+import { guardPlay, resetPlayGuards, unknownCode } from "../lib/play-guard";
 import { includesTraining, prologueComplete, trainingReport } from "../lib/game/awareness";
 import { grade } from "../lib/game/grade";
 import { emptyStory, nextBeat } from "../lib/game/story";
@@ -227,6 +229,13 @@ test("productie weigert beheer zonder wachtwoord en beperkt pogingen", () => {
   assert.equal(checkPassword("flitz-admin"), true);
   assert.equal(requestIsHttps({ url: "http://10.0.0.8:3000/api/admin/login", headers: { get: () => null } }), false);
   assert.equal(requestIsHttps({ url: "http://10.0.0.8:3000/api/admin/login", headers: { get: (name) => (name === "x-forwarded-proto" ? "https" : null) } }), true);
+  const previousTrust = env.TRUST_PROXY;
+  delete env.TRUST_PROXY;
+  assert.equal(loginClientKey({ headers: { get: (name) => (name === "x-forwarded-for" ? "203.0.113.8" : null) } }), "local");
+  env.TRUST_PROXY = "true";
+  assert.equal(loginClientKey({ headers: { get: (name) => (name === "x-forwarded-for" ? "203.0.113.8, 10.0.0.1" : null) } }), "203.0.113.8");
+  if (previousTrust === undefined) delete env.TRUST_PROXY;
+  else env.TRUST_PROXY = previousTrust;
   resetLoginLimits();
   for (let attempt = 0; attempt < 8; attempt += 1) {
     assert.equal(noteLoginFailure("tablet").limited, false);
@@ -239,6 +248,30 @@ test("productie weigert beheer zonder wachtwoord en beperkt pogingen", () => {
   else env.NODE_ENV = previousNode;
   if (previousPassword === undefined) delete env.ADMIN_PASSWORD;
   else env.ADMIN_PASSWORD = previousPassword;
+});
+
+test("teamcodes zijn lang en onbekende codes worden afgeremd", () => {
+  const code = makeCode();
+  assert.equal(code.length, 8);
+  assert.match(code, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/);
+  const env = process.env as Record<string, string | undefined>;
+  const previousNode = env.NODE_ENV;
+  const previousDemo = env.DEMO_TOOLS;
+  resetPlayGuards();
+  env.NODE_ENV = "production";
+  delete env.DEMO_TOOLS;
+  assert.equal(guardPlay("DEMO", "read")?.status, 404);
+  env.DEMO_TOOLS = "true";
+  resetPlayGuards();
+  assert.equal(guardPlay("DEMO", "read"), null);
+  resetPlayGuards();
+  for (let attempt = 0; attempt < 20; attempt += 1) assert.equal(unknownCode().status, 404);
+  assert.equal(unknownCode().status, 429);
+  if (previousNode === undefined) delete env.NODE_ENV;
+  else env.NODE_ENV = previousNode;
+  if (previousDemo === undefined) delete env.DEMO_TOOLS;
+  else env.DEMO_TOOLS = previousDemo;
+  resetPlayGuards();
 });
 
 test("escape, awareness en NIS2 volgen hun eigen start en een volledige ronde", async () => {

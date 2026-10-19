@@ -394,7 +394,7 @@ h1, h2, h3, p { margin: 0; }
 .admin { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
 .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
 .team-card header { display: flex; justify-content: space-between; gap: 8px; }
-.code { font-size: 28px; letter-spacing: 0.12em; }
+.code { font-size: 28px; letter-spacing: 0.08em; overflow-wrap: anywhere; }
 .stuck { color: var(--danger); }
 .qr { width: 148px; height: 148px; background: white; border-radius: 12px; padding: 6px; }
 .tabs { display: none; gap: 8px; padding: 0 10px 8px; }

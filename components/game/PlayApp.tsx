@@ -80,7 +80,7 @@ export function PlayApp({ code }: { code: string }) {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(item.body),
             });
-            if (!retry.ok && retry.status >= 500) pending.push(item);
+            if (!retry.ok && (retry.status >= 500 || retry.status === 429)) pending.push(item);
           } catch {
             pending.push(item);
           }

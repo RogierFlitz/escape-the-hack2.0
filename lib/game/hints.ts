@@ -1,3 +1,5 @@
+import "server-only";
+
 const hints: Record<string, [string, string, string]> = {
   "ch1-bays": [
     "Open bronnen die over het evenement, een partner of een medewerker gaan. Niet elke foto hoort daarbij.",

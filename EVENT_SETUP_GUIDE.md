@@ -32,7 +32,7 @@ npm start
    - Escape Room: meteen het kantoor.
    - Cyber Awareness of NIS2 Training Experience: eerst een proloog.
 4. NIS2 voegt na afloop een evaluatie en een trainingsrapport toe. Dat rapport is geen certificaat en zegt niet dat het bedrijf aan de wet voldoet.
-5. Zet de teams erin. Elke ploeg krijgt een code en een QR. De QR wijst naar het adres dat de tablets kunnen openen, niet naar localhost.
+5. Zet de teams erin. Elke ploeg krijgt een code van acht tekens en een QR. De QR wijst naar het adres dat de tablets kunnen openen, niet naar localhost. Deel een code alleen met die ploeg. Oude codes van vier tekens blijven werken.
 6. Laat de tablets de QR scannen of de code intypen. Ze blijven in de lobby tot jij start.
 7. Druk op starten als iedereen zover is.
 

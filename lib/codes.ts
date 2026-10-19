@@ -6,7 +6,7 @@ export function makeId() {
   return randomUUID();
 }
 
-export function makeCode(length = 4) {
+export function makeCode(length = 8) {
   const bytes = randomBytes(length);
   let out = "";
   for (let i = 0; i < length; i++) out += ALPHABET[bytes[i] % ALPHABET.length];

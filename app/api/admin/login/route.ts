@@ -28,19 +28,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, configured: false, error: problem }, { status: 503 });
   }
   const key = loginClientKey(request);
-  const blocked = loginLimited(key);
-  if (blocked.limited) {
+  if (loginLimited(key).limited || loginLimited("login-global", Date.now(), 40).limited) {
     return NextResponse.json({ ok: false, error: "Te veel pogingen. Probeer het later opnieuw." }, { status: 429 });
   }
   const body = (await request.json().catch(() => null)) as { password?: string } | null;
   if (!body?.password || !checkPassword(body.password)) {
     const failure = noteLoginFailure(key);
-    if (failure.limited) {
+    const global = noteLoginFailure("login-global", Date.now(), 40);
+    if (failure.limited || global.limited) {
       return NextResponse.json({ ok: false, error: "Te veel pogingen. Probeer het later opnieuw." }, { status: 429 });
     }
     return NextResponse.json({ ok: false, error: "Wachtwoord klopt niet." }, { status: 401 });
   }
   clearLoginFailures(key);
+  clearLoginFailures("login-global");
   await setAdminCookie(requestIsHttps(request));
   return NextResponse.json({ ok: true });
 }

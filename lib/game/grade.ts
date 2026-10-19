@@ -1,3 +1,4 @@
+import "server-only";
 import { network } from "./content";
 
 export type Grade = { ok: true; token?: string } | { ok: false; reason: "mismatch" | "incomplete"; note?: string };

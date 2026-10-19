@@ -2,12 +2,20 @@ import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/auth";
 import { demoBlocked, isDemoStop } from "@/lib/game/demo";
 import { openDemo } from "@/lib/game/actions";
+import { takeSlot } from "@/lib/play-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   if (demoBlocked(await isAdmin())) return NextResponse.json({ ok: false, error: "Demo staat uit." }, { status: 404 });
+  const pace = takeSlot("demo-open", 20);
+  if (!pace.ok) {
+    return NextResponse.json(
+      { ok: false, error: "Te veel pogingen. Wacht even." },
+      { status: 429, headers: { "Retry-After": String(pace.retrySec) } },
+    );
+  }
   const body = (await request.json().catch(() => null)) as { at?: unknown } | null;
   if (!isDemoStop(body?.at)) return NextResponse.json({ ok: false, error: "Onbekend demopunt." }, { status: 400 });
   const opened = await openDemo(body.at);

@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_FAILURES = 8;
@@ -19,9 +19,8 @@ export function adminConfigError() {
 }
 
 function safeEqual(a: string, b: string) {
-  const left = Buffer.from(a);
-  const right = Buffer.from(b);
-  if (left.length !== right.length) return false;
+  const left = createHmac("sha256", "eth-admin").update(a).digest();
+  const right = createHmac("sha256", "eth-admin").update(b).digest();
   return timingSafeEqual(left, right);
 }
 
@@ -45,27 +44,30 @@ export function requestIsHttps(request: { url: string; headers: { get(name: stri
 }
 
 export function loginClientKey(request: { headers: { get(name: string): string | null } }) {
-  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || "local";
+  if (process.env.TRUST_PROXY === "true") {
+    const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    if (forwarded) return forwarded.slice(0, 80);
+  }
+  return "local";
 }
 
-export function noteLoginFailure(key: string, now = Date.now()) {
+export function noteLoginFailure(key: string, now = Date.now(), max = MAX_FAILURES) {
   const row = failures.get(key);
   if (!row || row.reset <= now) {
     failures.set(key, { count: 1, reset: now + WINDOW_MS });
     return { limited: false, retrySec: 0 };
   }
   row.count += 1;
-  if (row.count > MAX_FAILURES) {
+  if (row.count > max) {
     return { limited: true, retrySec: Math.max(1, Math.ceil((row.reset - now) / 1000)) };
   }
   return { limited: false, retrySec: 0 };
 }
 
-export function loginLimited(key: string, now = Date.now()) {
+export function loginLimited(key: string, now = Date.now(), max = MAX_FAILURES) {
   const row = failures.get(key);
   if (!row || row.reset <= now) return { limited: false, retrySec: 0 };
-  if (row.count >= MAX_FAILURES) return { limited: true, retrySec: Math.max(1, Math.ceil((row.reset - now) / 1000)) };
+  if (row.count >= max) return { limited: true, retrySec: Math.max(1, Math.ceil((row.reset - now) / 1000)) };
   return { limited: false, retrySec: 0 };
 }
 
