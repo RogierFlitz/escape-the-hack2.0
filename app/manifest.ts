@@ -1,0 +1,14 @@
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "Escape the Hack 2.0",
+    short_name: "Escape the Hack",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#070b12",
+    theme_color: "#070b12",
+    orientation: "landscape",
+    icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }],
+  };
+}

@@ -26,6 +26,11 @@ const TOKENS: Record<string, string> = {
   "ch5-accuse": "INSIDER:ADLER",
 };
 
+export function demoBlocked(admin: boolean) {
+  if (process.env.NODE_ENV !== "production") return false;
+  return !(process.env.DEMO_TOOLS === "true" && admin);
+}
+
 export function isDemoStop(value: unknown): value is DemoStop {
   return demoStops.some((stop) => stop.id === value);
 }

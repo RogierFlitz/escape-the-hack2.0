@@ -62,6 +62,12 @@ export function playIncoming() {
   tone(659, 0.14, "sine", 0.025, 0.24);
 }
 
+export function playSecureConnect() {
+  tone(392, 0.16, "sine", 0.022);
+  tone(523, 0.22, "sine", 0.018, 0.14);
+  tone(659, 0.18, "sine", 0.012, 0.32);
+}
+
 export function playMessage() {
   tone(680, 0.06, "sine", 0.035);
   tone(910, 0.09, "sine", 0.03, 0.07);

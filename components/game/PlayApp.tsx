@@ -13,8 +13,11 @@ import { OriginPrologue } from "./Origin";
 import { AttackCine } from "./AttackCine";
 import { PuzzleStage } from "./puzzles";
 import { BackupBoard, SocialBoard } from "./StoryBoards";
-import { FinaleAlerts, ShutdownDesk } from "./Shutdown";
+import { FinaleAlerts, RestoreCine, ShutdownDesk } from "./Shutdown";
+import { PlayerResults } from "../results/ResultsApp";
 import { Pwa } from "../Pwa";
+
+const missionStepLabels = ["Footprint", "Leverancier", "Netwerk", "Encryptie", "Insider", "Finale"];
 
 function clock(total: number) {
   const safe = Math.max(0, total);
@@ -26,6 +29,8 @@ export function PlayApp({ code }: { code: string }) {
   const [error, setError] = useState<string | null>(null);
   const [offline, setOffline] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [evalOpen, setEvalOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState<string | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
@@ -35,7 +40,6 @@ export function PlayApp({ code }: { code: string }) {
   const [cine, setCine] = useState(false);
   const [cineResume, setCineResume] = useState(false);
   const [alertsSeen, setAlertsSeen] = useState(false);
-  const [replayCine, setReplayCine] = useState(false);
   const [shaking, setShaking] = useState(false);
   const [feedback, setFeedback] = useState<{ id: string; text: string } | null>(null);
   const [originTick, setOriginTick] = useState(0);
@@ -229,9 +233,19 @@ export function PlayApp({ code }: { code: string }) {
   const nextPuzzle = snap.puzzles.find((item) => item.available && !item.solved);
 
   function openFile(id: string) {
-    setFileId(id);
-    setMode("file");
+    if (fileId === id && mode === "file") {
+      setFileId(null);
+      setMode("puzzle");
+    } else {
+      setFileId(id);
+      setMode("file");
+    }
     setRail(null);
+  }
+
+  function closeFile() {
+    setFileId(null);
+    setMode("puzzle");
   }
 
   function download() {
@@ -300,6 +314,8 @@ export function PlayApp({ code }: { code: string }) {
   const lessons = dossier(story);
   const finaleStep = beat.kind === "finale" ? beat.step : beat.kind === "puzzle" && beat.puzzleId === "ch6-seals" ? "seals" as const : beat.kind === "puzzle" && beat.puzzleId === "ch6-shutdown" ? "shutdown" as const : null;
   const stagePuzzle = beat.kind === "puzzle" ? snap.puzzles.find((item) => item.id === beat.puzzleId) ?? null : null;
+  const missionOne = snap.phase === "crisis" && missionId === 1 && !snap.finished;
+  const missionTwo = spoken?.id === "m2" || (snap.phase === "crisis" && missionId === 2 && !snap.finished && !spoken);
 
   function beginBreach(report: boolean) {
     sessionStorage.setItem(`eth-hack-${code}`, report ? "report" : "open");
@@ -316,8 +332,7 @@ export function PlayApp({ code }: { code: string }) {
       starting.current = false;
       return;
     }
-    const seen = await send("story", { scene: "incident" });
-    if (seen) await send("story", { scene: "m1" });
+    await send("story", { scene: "incident" });
     sessionStorage.removeItem(`eth-hack-${code}`);
     sessionStorage.removeItem(`eth-cine-${code}`);
     setCine(false);
@@ -325,7 +340,7 @@ export function PlayApp({ code }: { code: string }) {
   }
 
   return (
-    <main className={`${snap.phase === "office" ? "office-root" : "play-root"} app-shell`}>
+    <main className={`${snap.phase === "office" ? "office-root" : "play-root"}${missionOne ? " m1-shell" : ""}${missionTwo ? " m2-shell" : ""} app-shell`}>
       <Pwa />
       <div className="turn">
         <div>
@@ -334,33 +349,72 @@ export function PlayApp({ code }: { code: string }) {
         </div>
       </div>
       <header className="topbar">
-        <div className="brand">{snap.phase === "office" ? "NEXORA" : "ESCAPE THE HACK 2.0"}<small>{snap.phase === "office" ? `WERKDAG · ${snap.team.name}` : snap.team.name}</small></div>
-        <div>
-          <div className="muted" style={{ fontSize: 12 }}>{snap.phase === "office" ? "Onderzoek" : beat.kind === "transmission" && beat.id === "incident" ? "Incident" : missionTitle(missionId)}</div>
-          {snap.phase !== "office" && (
-            <div className="segs" aria-label="Hoofdstukken">
-              {Array.from({ length: 6 }, (_, index) => {
-                const id = index + 1;
-                const done = snap.progress.chaptersDone >= id;
-                const current = snap.chapter.id === id;
-                return <i key={id} className={`seg${done ? " on" : ""}${current && !done ? " now" : ""}`} />;
-              })}
+        {missionOne ? (
+          <MissionOneBar
+            missionId={missionId}
+            title={missionTitle(missionId)}
+            chaptersDone={snap.progress.chaptersDone}
+            currentChapter={snap.chapter.id}
+            score={snap.team.score}
+            clockLabel={clockLabel}
+            late={remaining < 120}
+            warn={remaining >= 120 && remaining < 600}
+            audio={audio}
+            rail={rail}
+            hint={stagePuzzle && !stagePuzzle.solved ? { level: stagePuzzle.hintLevel, penalty: snap.session.hintPenalty ? snap.session.hintPenaltySec : 0 } : null}
+            busy={busy}
+            onHint={() => {
+              if (!stagePuzzle) return;
+              void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 });
+            }}
+            onAudio={() => { const next = !audio; setAudio(next); setSound(next); }}
+            onFull={() => {
+              if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
+              else void document.exitFullscreen?.();
+            }}
+            onRail={(next) => setRail(rail === next ? null : next)}
+          />
+        ) : (
+          <>
+            <div className="brand">
+              {missionTwo && (
+                <svg className="m2-mark" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#ff2a3a" d="M12 1.5 22 12 12 22.5 2 12z" />
+                  <path fill="#fff" d="M12 6.5 16.8 12 12 17.5 7.2 12z" />
+                </svg>
+              )}
+              {snap.phase === "office" ? "NEXORA" : missionTwo ? <>ESCAPE THE HACK <em>2.0</em></> : "ESCAPE THE HACK 2.0"}
+              {!missionTwo && <small>{snap.phase === "office" ? `WERKDAG · ${snap.team.name}` : snap.team.name}</small>}
             </div>
-          )}
-        </div>
-        <div className="grow" />
-        {snap.phase !== "office" && <div className="mono" style={{ fontSize: 16 }}>{snap.team.score} pt</div>}
-        {stagePuzzle && !stagePuzzle.solved && snap.phase === "crisis" && (
-          <button className="icon-btn" type="button" disabled={busy || stagePuzzle.hintLevel >= 3} onClick={() => void send("hint", { puzzleId: stagePuzzle.id })}>
-            Hints {stagePuzzle.hintLevel}/3
-          </button>
+            <div className={missionTwo ? "m2-mid" : undefined}>
+              <div className="muted" style={{ fontSize: 12 }}>{snap.phase === "office" ? "Onderzoek" : beat.kind === "transmission" && beat.id === "incident" ? "Incident" : missionTitle(missionId)}</div>
+              {missionTwo && <div className="m2-count">Missie 2 van 6</div>}
+              {snap.phase !== "office" && (
+                <div className="segs" aria-label="Hoofdstukken">
+                  {Array.from({ length: 6 }, (_, index) => {
+                    const id = index + 1;
+                    const done = snap.progress.chaptersDone >= id;
+                    const current = snap.chapter.id === id;
+                    return <i key={id} className={`seg${done ? " on" : ""}${current && !done ? " now" : ""}`} />;
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="grow" />
+            {snap.phase !== "office" && <div className="mono" style={{ fontSize: 16 }}>{snap.team.score} pt</div>}
+            {stagePuzzle && !stagePuzzle.solved && snap.phase === "crisis" && (
+              <button className="icon-btn" type="button" disabled={busy || stagePuzzle.hintLevel >= 3} onClick={() => void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 })}>
+                Hints {stagePuzzle.hintLevel}/3
+              </button>
+            )}
+            <div className={`mono ${snap.phase === "office" ? "timer" : timerClass}`}>{clockLabel}</div>
+            <button className="icon-btn" type="button" onClick={() => { const next = !audio; setAudio(next); setSound(next); }}>{audio ? "geluid aan" : "geluid uit"}</button>
+            <button className="icon-btn" type="button" onClick={() => {
+              if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
+              else void document.exitFullscreen?.();
+            }}>volledig</button>
+          </>
         )}
-        <div className={`mono ${snap.phase === "office" ? "timer" : timerClass}`}>{clockLabel}</div>
-        <button className="icon-btn" type="button" onClick={() => { const next = !audio; setAudio(next); setSound(next); }}>{audio ? "geluid aan" : "geluid uit"}</button>
-        <button className="icon-btn" type="button" onClick={() => {
-          if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
-          else void document.exitFullscreen?.();
-        }}>volledig</button>
       </header>
       {offline && <div className="offline" style={{ padding: "0 12px" }}>Verbinding verbroken. Voortgang blijft op dit toestel staan.</div>}
 
@@ -395,8 +449,14 @@ export function PlayApp({ code }: { code: string }) {
       {snap.phase === "crisis" && !snap.finished && !cine && (
         <>
           <div className="tabs">
-            <button className="btn" type="button" onClick={() => setRail(rail === "mission" ? null : "mission")}>Dossier</button>
-            <button className="btn" type="button" onClick={() => setRail(rail === "evidence" ? null : "evidence")}>Bewijs</button>
+            <button className="btn" type="button" onClick={() => setRail(rail === "mission" ? null : "mission")}>
+              <svg className="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v11H4z" /><path d="M4 7l8 6 8-6" /></svg>
+              Dossier
+            </button>
+            <button className="btn" type="button" onClick={() => setRail(rail === "evidence" ? null : "evidence")}>
+              <svg className="tab-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v4H8z" /><path d="M6 8h12v12H6z" /></svg>
+              Bewijs
+            </button>
           </div>
           <section className="desk">
             <aside className={`panel col rail-left${rail === "mission" ? " open" : ""}`}>
@@ -410,8 +470,7 @@ export function PlayApp({ code }: { code: string }) {
                   </div>
                 ))}
               </div>
-                <button className="btn" type="button" onClick={() => setReplayCine(true)}>Aanval opnieuw</button>
-                <p className="kicker" style={{ marginTop: 16 }}>Dossier</p>
+              <p className="kicker" style={{ marginTop: 16 }}>Dossier</p>
               <div className="list">
                 {lessons.map((item) => (
                   <div key={item.id} className="token">
@@ -435,7 +494,18 @@ export function PlayApp({ code }: { code: string }) {
               ) : spoken && spoken.id === "m6" && !alertsSeen ? (
                 <FinaleAlerts audio={audio} onDone={() => { sessionStorage.setItem(`eth-m6-alerts-${code}`, "1"); setAlertsSeen(true); }} />
               ) : spoken ? (
-                <KadeTransmission scene={spoken} audio={audio} onDone={() => void send("story", { scene: spoken.id })} />
+                <KadeTransmission
+                  scene={spoken}
+                  audio={audio}
+                  onDone={() => {
+                    if (spoken.id === "incident") {
+                      setCineResume(true);
+                      setCine(true);
+                      return;
+                    }
+                    void send("story", { scene: spoken.id });
+                  }}
+                />
               ) : beat.kind === "social" ? (
                 <SocialBoard busy={busy} onSubmit={(ids) => void send("story", { social: ids })} />
               ) : beat.kind === "backup" ? (
@@ -452,8 +522,9 @@ export function PlayApp({ code }: { code: string }) {
                     onSolve={(payload) => stagePuzzle && void send("solve", { puzzleId: stagePuzzle.id, payload })}
                   />
                 </div>
-              ) : mode === "file" && file ? <FileView file={file} /> : stagePuzzle && stagePuzzle.chapterId <= 5 ? (
+              ) : stagePuzzle && stagePuzzle.chapterId <= 5 ? (
                 <div className="fp-stage">
+                  {mode === "file" && file ? <FileNote file={file} onClose={closeFile} /> : null}
                   <PuzzleStage
                     id={stagePuzzle.id}
                     solved={stagePuzzle.solved}
@@ -474,6 +545,7 @@ export function PlayApp({ code }: { code: string }) {
                 </div>
               ) : stagePuzzle ? (
                 <div className="stack">
+                  {mode === "file" && file ? <FileNote file={file} onClose={closeFile} /> : null}
                   <div>
                     <p className="kicker">{stagePuzzle.title}</p>
                     <p className="muted">{stagePuzzle.bridge}</p>
@@ -493,7 +565,7 @@ export function PlayApp({ code }: { code: string }) {
                     </div>
                   )}
                 </div>
-              ) : <p>Geen opdracht geselecteerd.</p>}
+              ) : mode === "file" && file ? <FileNote file={file} onClose={closeFile} /> : <p>Geen opdracht geselecteerd.</p>}
             </section>
             <aside className={`panel col rail-right${rail === "evidence" ? " open" : ""}`}>
               <p className="kicker">Inventaris</p>
@@ -517,7 +589,7 @@ export function PlayApp({ code }: { code: string }) {
                 <div className="pips" aria-hidden>
                   {[1, 2, 3].map((level) => <i key={level} className={stagePuzzle.hintLevel >= level ? "pip on" : "pip"} />)}
                 </div>
-                <button className="btn" type="button" disabled={busy || stagePuzzle.hintLevel >= 3} onClick={() => void send("hint", { puzzleId: stagePuzzle.id })}>
+                <button className="btn" type="button" disabled={busy || stagePuzzle.hintLevel >= 3} onClick={() => void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 })}>
                   Hint{snap.session.hintPenalty ? ` · +${snap.session.hintPenaltySec}s` : ""}
                 </button>
               </>
@@ -530,14 +602,17 @@ export function PlayApp({ code }: { code: string }) {
         <div className="pause"><div className="panel"><p className="kicker">Pauze</p><h2>De instructeur heeft de klok stilgezet.</h2></div></div>
       )}
 
-      {(cine || replayCine) && (
+      {cine && (
         <AttackCine
           reported={reported}
           audio={audio}
-          resumed={cineResume && !replayCine}
-          live={snap.phase === "office"}
+          resumed={cineResume}
+          live={snap.phase === "office" || spoken?.id === "incident"}
+          score={snap.team.score}
+          allottedSec={snap.session.durationSec}
+          onToggleAudio={() => { const next = !audio; setAudio(next); setSound(next); }}
           onStart={() => void enterCrisis()}
-          onClose={() => { setReplayCine(false); setCine(false); }}
+          onClose={() => setCine(false)}
         />
       )}
 
@@ -552,7 +627,15 @@ export function PlayApp({ code }: { code: string }) {
         </div>
       )}
 
-      {snap.finished && (
+      {evalOpen && snap.finished && <PlayerResults code={code} onClose={() => setEvalOpen(false)} />}
+
+      {snap.finished?.outcome === "completed" && !reportOpen && (
+        <div className="ending win">
+          <RestoreCine score={snap.team.score} onDone={() => setReportOpen(true)} />
+        </div>
+      )}
+
+      {snap.finished && (snap.finished.outcome !== "completed" || reportOpen) && (
         <div className={`ending ${snap.finished.outcome === "completed" ? "win" : "fail"}`}>
           <div className="panel stack sd-report">
             <p className="kicker mono">{snap.team.name}</p>
@@ -609,6 +692,7 @@ export function PlayApp({ code }: { code: string }) {
             <div className="row">
               <button className="btn" type="button" onClick={download}>Resultaat bewaren</button>
               {training && <button className="btn" type="button" onClick={saveTraining}>Trainingsrapport</button>}
+              <button className="btn btn-primary" type="button" onClick={() => setEvalOpen(true)}>Evaluatie</button>
               <a className="btn btn-ghost" href={`/results/${snap.team.code}`}>Opnieuw bekijken</a>
             </div>
           </div>
@@ -618,10 +702,97 @@ export function PlayApp({ code }: { code: string }) {
   );
 }
 
-function FileView({ file }: { file: PlayFile }) {
+function MissionOneBar({
+  missionId,
+  title,
+  chaptersDone,
+  currentChapter,
+  score,
+  clockLabel,
+  late,
+  warn,
+  audio,
+  rail,
+  hint,
+  busy,
+  onHint,
+  onAudio,
+  onFull,
+  onRail,
+}: {
+  missionId: number;
+  title: string;
+  chaptersDone: number;
+  currentChapter: number;
+  score: number;
+  clockLabel: string;
+  late: boolean;
+  warn: boolean;
+  audio: boolean;
+  rail: "mission" | "evidence" | null;
+  hint: { level: number; penalty: number } | null;
+  busy: boolean;
+  onHint: () => void;
+  onAudio: () => void;
+  onFull: () => void;
+  onRail: (next: "mission" | "evidence") => void;
+}) {
   return (
-    <article className="stack">
-      <p className="kicker mono">{file.name}</p>
+    <>
+      <div className="m1-brand">
+        <span className="m1-mark" aria-hidden />
+        <div>
+          <strong>ESCAPE THE HACK 2.0</strong>
+          <small>Missie {missionId} · {title}</small>
+        </div>
+      </div>
+      <ol className="m1-steps" aria-label="Zes missies">
+        {missionStepLabels.map((label, index) => {
+          const id = index + 1;
+          const done = chaptersDone >= id;
+          const current = currentChapter === id;
+          return (
+            <li key={label} className={done ? "done" : current ? "now" : ""}>
+              <span>{id}</span>
+              <small>{label}</small>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="m1-tools">
+        <div className="m1-score"><Trophy /><b>{score} pt</b></div>
+        <div className={`mono m1-clock${late ? " late" : warn ? " warn" : ""}`} aria-label="Resterende tijd">{clockLabel}</div>
+        {hint && (
+          <button className="m1-tool" type="button" disabled={busy || hint.level >= 3} onClick={onHint}>
+            Hint {hint.level}/3{hint.penalty ? ` +${hint.penalty}s` : ""}
+          </button>
+        )}
+        <button className="m1-tool" type="button" onClick={onAudio}>{audio ? "Geluid aan" : "Geluid uit"}</button>
+        <button className="m1-tool" type="button" onClick={onFull}>Volledig scherm</button>
+        <button className="m1-tool" type="button" aria-pressed={rail === "mission"} onClick={() => onRail("mission")}>Dossier</button>
+        <button className="m1-tool" type="button" aria-pressed={rail === "evidence"} onClick={() => onRail("evidence")}>Bewijs</button>
+      </div>
+    </>
+  );
+}
+
+function Trophy() {
+  return (
+    <svg className="m1-trophy" viewBox="0 0 24 24" aria-hidden>
+      <path d="M7 4h10v2a5 5 0 0 1-10 0z" />
+      <path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4" />
+      <path d="M12 13v3M9 20h6M10 16h4l1 4H9z" />
+    </svg>
+  );
+}
+
+function FileNote({ file, onClose }: { file: PlayFile; onClose: () => void }) {
+  return (
+    <article className="fp-file">
+      <header>
+        <p className="kicker mono">{file.name}</p>
+        <button className="btn btn-ghost" type="button" onClick={onClose}>Sluiten</button>
+      </header>
       {file.meta && (
         <table className="meta-table">
           <tbody>

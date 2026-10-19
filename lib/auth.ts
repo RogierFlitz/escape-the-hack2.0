@@ -3,8 +3,11 @@ import { createHmac, randomBytes, timingSafeEqual } from "crypto";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "fs";
 import path from "path";
 import { cookies } from "next/headers";
+import { checkPassword, usingDefaultPassword } from "./admin-gate";
 
 const COOKIE = "eth_admin";
+
+export { checkPassword, usingDefaultPassword };
 
 function secret() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
@@ -27,22 +30,14 @@ function safeEqual(a: string, b: string) {
   return timingSafeEqual(left, right);
 }
 
-export function usingDefaultPassword() {
-  return !process.env.ADMIN_PASSWORD;
-}
-
-export function checkPassword(input: string) {
-  return safeEqual(input, process.env.ADMIN_PASSWORD || "flitz-admin");
-}
-
-export async function setAdminCookie() {
+export async function setAdminCookie(secure: boolean) {
   const exp = Date.now() + 1000 * 60 * 60 * 14;
   const body = Buffer.from(JSON.stringify({ exp, role: "admin" })).toString("base64url");
   const jar = await cookies();
   jar.set(COOKIE, `${body}.${sign(body)}`, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.COOKIE_SECURE === "true",
+    secure,
     path: "/",
     maxAge: 60 * 60 * 14,
   });

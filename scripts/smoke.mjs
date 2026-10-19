@@ -28,6 +28,7 @@ const archive = {
     { id: "helix-floor", claim: "vendor" },
     { id: "adler-table", claim: "leak" },
     { id: "helix-card", claim: "trust" },
+    { id: "berg-vrij", claim: "public" },
   ],
 };
 
@@ -36,19 +37,19 @@ const steps = [
   ["ch1-login", { spots: ["badge", "plan", "sign", "lanyard"] }],
   ["ch1-nodes", { links: { lead: "mara", place: "dok", vendor: "helix", leak: "adler", trust: "listing" } }],
   ["ch1-ports", { event: "nexora-day", name: "helix", step: "impersonate" }],
-  ["ch2-acrostic", { mail: "phish", evidence: ["contract", "prior"] }],
-  ["ch2-meta", { marks: ["author", "dock-row", "modified"] }],
+  ["ch2-acrostic", { mail: "phish", evidence: ["contract", "header"] }],
+  ["ch2-meta", { marks: ["author", "dock-row"] }],
   ["ch2-timeline", { order: ["phish", "dock", "export"] }],
   ["ch2-trace", { job: "DOCK-244", supports: ["export-log", "attachment"] }],
-  ["ch3-logic", { session: "helix-svc", clues: ["hours", "account"] }],
+  ["ch3-logic", { session: "helix-svc", clues: ["hours", "vault"] }],
   ["ch3-path", { path: ["CRU", "EDGE", "DNS", "AUTH", "VAULT"] }],
-  ["ch3-boot", { actions: ["isolate-session", "keep-log"] }],
+  ["ch3-boot", { actions: ["isolate-session", "keep-log", "hold-edge"] }],
   ["ch3-cables", { DNS: "53", AUTH: "443", LOG: "514", TRAP: "PARK", order: ["DNS", "AUTH", "VAULT"] }],
   ["ch4-symbols", { files: ["planning", "contract", "staff", "finance", "agenda"] }],
   ["ch4-sequence", { value: 22 }],
   ["ch4-rotor", { word: "SEAL", shape: "square" }],
   ["ch4-backup", { id: "kluis-nacht" }],
-  ["ch4-decode", { code: "HX19" }],
+  ["ch4-decode", { code: "HX-19" }],
   ["ch5-camera", { frames: ["cafe-0236", "dock-0231", "entry-0248", "gate-0229"] }],
   ["ch5-places", { places: { vale: "kantine", crew: "dok", okonkwo: "rek", crowe: "kantoor" }, badge: "apart" }],
   ["ch5-share", { setting: "19:04", opened: "19:06", message: "19:05" }],
@@ -57,7 +58,20 @@ const steps = [
   ["ch6-shutdown", { order: ["N74192", "DOCK-244", "ROUTE-7", "HX-19"] }],
 ];
 
-const login = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password: "flitz-admin" }) });
+const health = await api("/api/health");
+assert(health.status === 200 && health.data.ok === true, "health");
+
+const adminClosed = await api("/api/sessions");
+assert(adminClosed.status === 401, "players cannot open admin");
+
+const demo = await api("/api/demo", { method: "POST", body: JSON.stringify({ at: "m1" }) });
+assert(demo.status === 404, "demo hidden from players");
+
+const wrongPassword = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password: "niet-het-wachtwoord" }) });
+assert(wrongPassword.status === 401, "wrong password");
+assert(!JSON.stringify(wrongPassword.data).toLowerCase().includes("flitz-admin"), "wrong password leaks no password");
+
+const login = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password: process.env.ADMIN_PASSWORD || "flitz-admin" }) });
 assert(login.status === 200, "login");
 
 const created = await api("/api/sessions", {
@@ -91,12 +105,21 @@ const breach = await api(`/api/play/${north.code}/breach`, { method: "POST", bod
 assert(breach.status === 200, "breach");
 assert(breach.data.phase === "crisis", "crisis after breach");
 assert(breach.data.team.phishReported === true, "phish reward flag");
+assert(breach.data.team.score === 200, "phish score");
+assert(breach.data.session.running === true, "clock armed");
+
+const breachAgain = await api(`/api/play/${north.code}/breach`, { method: "POST", body: JSON.stringify({ reported: true }) });
+assert(breachAgain.status === 200, "breach retry");
+assert(breachAgain.data.session.remainingSec <= breach.data.session.remainingSec, "clock did not restart");
+assert(breachAgain.data.team.score === 200, "phish score once");
 
 async function story(body) {
   const result = await api(`/api/play/${north.code}/story`, { method: "POST", body: JSON.stringify(body) });
   assert(result.status === 200, `story ${JSON.stringify(body)} -> ${result.status} ${result.data?.error ?? ""}`);
 }
 await story({ scene: "incident" });
+const pendingMission = await api(`/api/play/${north.code}`);
+assert(pendingMission.data.story.scenes.includes("m1") === false, "mission 1 speech still pending");
 await story({ scene: "m1" });
 
 const wrong = await api(`/api/play/${north.code}/solve`, {
@@ -108,11 +131,17 @@ assert(wrong.data.snapshot.team.fails === 1, "fail counted");
 
 const hint = await api(`/api/play/${north.code}/hint`, {
   method: "POST",
-  body: JSON.stringify({ puzzleId: "ch1-bays" }),
+  body: JSON.stringify({ puzzleId: "ch1-bays", level: 1 }),
 });
 assert(hint.status === 200, "hint");
 assert(hint.data.puzzles.find((puzzle) => puzzle.id === "ch1-bays").hints.length === 1, "hint text");
 assert(hint.data.team.penaltySec === 30, "penalty");
+const hintRetry = await api(`/api/play/${north.code}/hint`, {
+  method: "POST",
+  body: JSON.stringify({ puzzleId: "ch1-bays", level: 1 }),
+});
+assert(hintRetry.status === 200, "hint retry");
+assert(hintRetry.data.team.penaltySec === 30, "hint retry keeps one penalty");
 
 const locked = await api(`/api/play/${north.code}/solve`, {
   method: "POST",

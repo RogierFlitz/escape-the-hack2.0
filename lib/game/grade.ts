@@ -33,7 +33,7 @@ function edgeSet() {
 
 const bad = new Set(network.nodes.filter((node) => node.bad).map((node) => node.id));
 
-const archiveKey = ["adler-table:leak", "dock-shot:where", "helix-card:trust", "helix-floor:vendor", "mara-lead:who"];
+const archiveKey = ["adler-table:leak", "berg-vrij:public", "dock-shot:where", "helix-card:trust", "helix-floor:vendor", "mara-lead:who"];
 const photoKey = ["badge", "lanyard", "plan", "sign"];
 const boardKey: Record<string, string> = {
   lead: "mara",
@@ -56,8 +56,8 @@ function gradeArchive(body: Record<string, unknown>): Grade {
   });
   const ids = pairs.map((pair) => pair.split(":")[0]);
   if (new Set(ids).size !== ids.length) return nora("Elke bron hoort bij één vraag.", "mismatch");
-  if (pins.length < 5) return nora("Er mist nog een soort informatie. Vijf verschillende vragen hebben elk een eigen bron nodig.", "incomplete");
-  if (pins.length > 5) return nora("Niet elke bron die je bewaarde hoort in zijn voorbereiding.", "mismatch");
+  if (pins.length < archiveKey.length) return nora("Er mist nog een soort informatie. Elke vraag heeft een eigen bron nodig.", "incomplete");
+  if (pins.length > archiveKey.length) return nora("Niet elke bron die je bewaarde hoort in zijn voorbereiding.", "mismatch");
   const sorted = [...pairs].sort();
   if (!same(sorted, archiveKey)) return nora("Een bron beantwoordt een andere vraag dan je koos.", "mismatch");
   return { ok: true };

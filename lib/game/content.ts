@@ -65,6 +65,114 @@ export const puzzles: { id: string; chapterId: number; title: string; brief: str
   { id: "ch6-shutdown", chapterId: 6, title: "Afsluiten", brief: "Zet de vondsten op volgorde en bevestig de afsluiting.", bridge: "" },
 ];
 
+/** Wat het team moet doen, zonder het antwoord. De actieregel noemt alleen de handeling. */
+export const puzzleCues: Record<string, { text: string; action: string }> = {
+  "ch1-bays": {
+    text: "Open een bron en leg per bron vast welk verband hij ermee kon leggen.",
+    action: "Koppel",
+  },
+  "ch1-login": {
+    text: "Vergroot de foto en markeer de plekken waar iets leesbaars of herkenbaars staat. Lege plekken laat je open.",
+    action: "Markeer",
+  },
+  "ch1-nodes": {
+    text: "Kies een bewijsstuk en koppel het aan de vraag op het bord waar het bij hoort.",
+    action: "Koppel",
+  },
+  "ch1-ports": {
+    text: "Kies in het archief het evenement, de naam die hij kon gebruiken, en wat hij daarmee kon doen.",
+    action: "Kies",
+  },
+  "ch2-acrostic": {
+    text: "Wijs het verdachte bericht aan en kies minstens twee bronnen die dat ondersteunen.",
+    action: "Markeer",
+  },
+  "ch2-meta": {
+    text: "Vergelijk de kenmerken van de bijlage met de eerdere planning en markeer wat het bestand riskant maakte.",
+    action: "Vergelijk",
+  },
+  "ch2-timeline": {
+    text: "Zet de kaarten in de volgorde van die nacht. De tijden staan in de log, niet op de kaarten.",
+    action: "Zet in volgorde",
+  },
+  "ch2-trace": {
+    text: "Noem de exportjob die het dok verliet en wijs minstens twee bronnen aan die dat ondersteunen.",
+    action: "Kies",
+  },
+  "ch3-logic": {
+    text: "Kies een sessie en minstens twee aanwijzingen die laten zien wat die sessie deed.",
+    action: "Kies",
+  },
+  "ch3-path": {
+    text: "Teken een route vanaf het werkstation van het bedrijf naar de kluis. Gebruik alleen sprongen die op de kaart bestaan.",
+    action: "Koppel",
+  },
+  "ch3-boot": {
+    text: "Kies de tijdelijke isolatie-acties. De log en de kluis moeten blijven.",
+    action: "Kies",
+  },
+  "ch3-cables": {
+    text: "Koppel elke kabel in de patchkast. Zet daarna de systemen in de startvolgorde.",
+    action: "Koppel, daarna zet in volgorde",
+  },
+  "ch4-symbols": {
+    text: "Open de bestanden en markeer wat niet meer leesbaar is.",
+    action: "Markeer",
+  },
+  "ch4-sequence": {
+    text: "Lees het patroon in het herstelhandboek en vul de volgende controlewaarde in.",
+    action: "Vul in",
+  },
+  "ch4-rotor": {
+    text: "Zet de rotor met een token dat je al hebt, en maak de vorm van de cassette af.",
+    action: "Zet",
+  },
+  "ch4-backup": {
+    text: "Vergelijk de drie kopieën en kies er één om terug te zetten.",
+    action: "Vergelijk",
+  },
+  "ch4-decode": {
+    text: "Bevestig het controlepunt, open het doklogboek en kies de pas die bij de leverancier hoort.",
+    action: "Kies",
+  },
+  "ch5-camera": {
+    text: "Bewaar de stills waarop een persoon of een pas te zien is. Lege beelden laat je liggen.",
+    action: "Markeer",
+  },
+  "ch5-places": {
+    text: "Zet elke persoon op een plek en geef aan of het paslogboek bij het beeld past.",
+    action: "Plaats",
+  },
+  "ch5-share": {
+    text: "Scheid de documentgebeurtenissen van die avond van de latere aanval. Wijs de wijziging, de opening en het bijbehorende bericht aan.",
+    action: "Kies",
+  },
+  "ch5-accuse": {
+    text: "Vul het rapport in met wie, welk document, de oorzaak, de bedoeling, en bewijs dat een bestand is gedeeld. Een camera alleen is niet genoeg: onderscheid wat een beeld toont van wat een log of chat beweert.",
+    action: "Kies",
+  },
+  access: {
+    text: "Kies een sessie en de aanwijzingen die laten zien wat die sessie deed.",
+    action: "Kies",
+  },
+  revoke: {
+    text: "Bevestig dat je de gekozen sessie intrekt.",
+    action: "Bevestig",
+  },
+  seals: {
+    text: "Leg de tokens die je al hebt verdiend op de systemen die daarbij passen.",
+    action: "Koppel",
+  },
+  "backup-check": {
+    text: "Vink de herstelcontrole af. Alleen wat bij een schone set hoort.",
+    action: "Markeer",
+  },
+  shutdown: {
+    text: "Zet de vondsten in de volgorde waarin je de tokens vond, en bevestig de afsluiting.",
+    action: "Zet in volgorde",
+  },
+};
+
 export const PUZZLE_IDS = puzzles.map((puzzle) => puzzle.id);
 
 export const bays = [

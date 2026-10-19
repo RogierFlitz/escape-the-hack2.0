@@ -1,9 +1,22 @@
 "use client";
 
 import { useRef } from "react";
+import { puzzleCues } from "@/lib/game/content";
 
 export function Seal() {
   return <div className="seal mono">LAAG HERSTELD</div>;
+}
+
+export function TaskCue({ id, nora }: { id: string; nora?: string }) {
+  const cue = puzzleCues[id];
+  if (!cue) return null;
+  return (
+    <div className="fp-cue" data-cue={id}>
+      {nora ? <p className="fp-nora">{nora}</p> : null}
+      <p>{cue.text}</p>
+      <p className="fp-act">{cue.action}</p>
+    </div>
+  );
 }
 
 export function Keys({

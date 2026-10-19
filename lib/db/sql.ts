@@ -65,9 +65,11 @@ function migrateSqlite(db: DatabaseSync) {
 }
 
 function sqlite(): Sql {
-  const dir = path.join(process.cwd(), "data");
-  mkdirSync(dir, { recursive: true });
-  const db = new DatabaseSync(path.join(dir, "game.sqlite"));
+  const file = process.env.SQLITE_PATH
+    ? path.resolve(process.env.SQLITE_PATH)
+    : path.join(process.cwd(), "data", "game.sqlite");
+  mkdirSync(path.dirname(file), { recursive: true });
+  const db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA busy_timeout = 4000;");
   db.exec(SCHEMA);

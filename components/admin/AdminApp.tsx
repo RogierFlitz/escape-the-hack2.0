@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MODE_PLAN, type GameMode } from "@/lib/game/awareness";
 import type { AdminSnapshot, Session } from "@/lib/types";
+import { AdminResults } from "../results/ResultsApp";
 
 function clock(total: number) {
   const safe = Math.max(0, Math.floor(total));
@@ -26,6 +27,7 @@ export function AdminApp() {
   const [ready, setReady] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [devHint, setDevHint] = useState(false);
+  const [configError, setConfigError] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -39,6 +41,7 @@ export function AdminApp() {
   const [mode, setMode] = useState<GameMode>("escape");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
+  const [resultsView, setResultsView] = useState<"report" | "stage" | null>(null);
 
   async function refreshList() {
     const response = await fetch("/api/sessions", { cache: "no-store" });
@@ -54,6 +57,7 @@ export function AdminApp() {
     fetch("/api/admin/login", { cache: "no-store" }).then((response) => response.json()).then((data) => {
       setAuthed(Boolean(data.authenticated));
       setDevHint(Boolean(data.devHint));
+      setConfigError(data.configured === false ? String(data.error ?? "Beheer is niet geconfigureerd.") : "");
       setReady(true);
     }).catch(() => setReady(true));
   }, []);
@@ -87,8 +91,9 @@ export function AdminApp() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ password }),
     });
+    const data = await response.json().catch(() => null);
     if (!response.ok) {
-      setLoginError("Wachtwoord klopt niet.");
+      setLoginError(data?.error ?? "Wachtwoord klopt niet.");
       return;
     }
     setAuthed(true);
@@ -136,9 +141,10 @@ export function AdminApp() {
           <p className="kicker">Flitz-events</p>
           <h1>Instructeur</h1>
           <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Wachtwoord" data-testid="admin-password" style={{ letterSpacing: 0, textTransform: "none", fontSize: 18 }} />
+          {configError && <p className="note">{configError}</p>}
           {loginError && <p className="note">{loginError}</p>}
-          {devHint && <p className="muted">Standaardwachtwoord: flitz-admin. Zet ADMIN_PASSWORD voor je de laptop buiten het evenement-wifi bereikbaar maakt.</p>}
-          <button className="btn btn-primary" type="submit">Open beheer</button>
+          {devHint && !configError && <p className="muted">Lokaal ontwikkelwachtwoord: flitz-admin. Zet ADMIN_PASSWORD voor een echt evenement. In productie is er geen standaardwachtwoord.</p>}
+          <button className="btn btn-primary" type="submit" disabled={Boolean(configError)}>Open beheer</button>
           <a className="linkish" href="/">Terug naar de game</a>
         </form>
       </main>
@@ -236,13 +242,16 @@ export function AdminApp() {
                   <button className="btn" type="button" onClick={() => void control("adjust", { seconds: -60 })}>−1 min</button>
                   <button className="btn btn-danger" type="button" onClick={() => void control("end")}>Beëindigen</button>
                   <a className="btn" href={`/api/sessions/${activeId}/export`}>Exporteer</a>
+                  <button className="btn" type="button" onClick={() => setResultsView("report")}>Resultaten</button>
+                  <button className="btn btn-mint" type="button" onClick={() => setResultsView("stage")}>Presentatie</button>
                   <button className="btn btn-ghost" type="button" onClick={() => { setActiveId(null); setBoard(null); }}>Terug</button>
                 </div>
               </div>
               {notice && <p className="note good">{notice}</p>}
               <p className="muted" style={{ marginTop: 8 }}>Tablets openen {base}. {host === "localhost" && !lan ? "Geen netwerkadres gevonden. Open dit scherm via het IP-adres van deze laptop." : ""}</p>
             </div>
-            <div className="team-grid">
+            {resultsView && <AdminResults sessionId={activeId} view={resultsView} onClose={() => setResultsView(null)} />}
+            {resultsView !== "report" && <div className="team-grid">
               {board.teams.map((team) => {
                 const url = `${base}/play/${team.code}`;
                 return (
@@ -271,7 +280,7 @@ export function AdminApp() {
                   </article>
                 );
               })}
-            </div>
+            </div>}
           </section>
         )}
       </div>

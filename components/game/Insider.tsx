@@ -15,6 +15,7 @@ import {
   shareHistory,
   wall,
 } from "@/lib/game/insider";
+import { TaskCue } from "./puzzles/ui";
 
 function useDraft<T>(id: string, initial: T) {
   const key = `eth-m5-${id}`;
@@ -98,8 +99,8 @@ export function InsiderDesk({
 
   return (
     <div className="rv in">
+      <TaskCue id={puzzleId} nora={puzzleId === "ch5-camera" ? noraInsider : undefined} />
       <div className="rv-main">
-        {puzzleId === "ch5-camera" && <p className="fp-nora">{noraInsider}</p>}
         <div className="sp-nav">
           {sections.map((item) => (
             <button key={item.id} className={section === item.id ? "on" : ""} type="button" onClick={() => { setSection(item.id); setZoom(null); }}>{item.label}</button>

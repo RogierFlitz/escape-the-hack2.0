@@ -45,10 +45,10 @@ export async function solve(code: string, puzzleId: string, payload: unknown) {
   const known = puzzles.some((puzzle) => puzzle.id === puzzleId);
   if (!known) return { error: "Onbekende opdracht." };
   return mutate(code, (session, team, now) => {
+    if (team.solved.includes(puzzleId)) return { team };
     const blocked = guard(session, team, now);
     if (blocked) return { error: blocked };
     if (inOffice(team)) return { error: "De aanval is nog niet begonnen." };
-    if (team.solved.includes(puzzleId)) return { team };
     const chapter = currentChapterId(team.solved);
     const puzzle = puzzles.find((item) => item.id === puzzleId);
     if (!puzzle || puzzle.chapterId > chapter) return { error: "Deze laag is nog vergrendeld." };
@@ -85,15 +85,19 @@ export async function triggerBreach(code: string, reported: boolean) {
   });
 }
 
-export async function takeHint(code: string, puzzleId: string) {
-  return mutate(code, (session, team, now) => {
-    const blocked = guard(session, team, now);
+export async function takeHint(code: string, puzzleId: string, level?: number) {
+  return mutate(code, (session, team) => {
+    const blocked = guard(session, team, Date.now());
     if (blocked) return { error: blocked };
     if (inOffice(team)) return { error: "De aanval is nog niet begonnen." };
     const puzzle = puzzles.find((item) => item.id === puzzleId);
     if (!puzzle || puzzle.chapterId > currentChapterId(team.solved)) return { error: "Deze laag is nog vergrendeld." };
     if (team.solved.includes(puzzleId)) return { error: "Deze opdracht is al hersteld." };
     const shown = Math.max(team.hints[puzzleId] ?? 0, team.instructorHints[puzzleId] ?? 0);
+    if (typeof level === "number" && Number.isInteger(level)) {
+      if (shown >= level) return { team };
+      if (level !== shown + 1) return { error: "Deze hint is nu niet aan de beurt." };
+    }
     if (shown >= 3) return { error: "Alle hints voor deze opdracht zijn gebruikt." };
     team.hints = { ...team.hints, [puzzleId]: shown + 1 };
     if (session.hintPenalty) team.penaltySec += session.hintPenaltySec;

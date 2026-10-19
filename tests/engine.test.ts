@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { emptyAwareness, gradeDecision, gradeEval, markPrologue, parseMode, pendingStoryDecision, prologueComplete, recordDecision, recordEval, trainingReport } from "../lib/game/awareness";
+import { colleaguePost, sources } from "../lib/game/footprint";
 import { grade } from "../lib/game/grade";
 import { hintText } from "../lib/game/hints";
 import { phishReady } from "../lib/game/office";
-import { PUZZLE_IDS } from "../lib/game/content";
-import { demoBeat } from "../lib/game/demo";
+import { PUZZLE_IDS, puzzleCues } from "../lib/game/content";
+import { demoBeat, demoBlocked } from "../lib/game/demo";
+import { finaleSessions } from "../lib/game/shutdown";
 import { applyStory, emptyStory, nextBeat } from "../lib/game/story";
 import { allSolved, currentChapterId, scoreBreakdown } from "../lib/scoring";
 import { baseRemainingSec, teamRemainingSec } from "../lib/time";
@@ -59,10 +61,27 @@ test("elke puzzel heeft één juiste oplossing", () => {
     { id: "helix-floor", claim: "vendor" },
     { id: "adler-table", claim: "leak" },
     { id: "helix-card", claim: "trust" },
+    { id: "berg-vrij", claim: "public" },
   ];
   assert.equal(grade("ch1-bays", { pins }).ok, true);
   assert.equal(grade("ch1-bays", { pins: pins.slice(0, 4) }).ok, false);
+  assert.equal(grade("ch1-bays", { pins: pins.filter((pin) => pin.claim !== "public") }).ok, false);
   assert.equal(grade("ch1-bays", { pins: [...pins.slice(0, 4), { id: "coffee-post", claim: "trust" }] }).ok, false);
+  const wrongPublic = grade("ch1-bays", { pins: pins.map((pin) => (pin.claim === "public" ? { id: "run-post", claim: "public" } : pin)) });
+  assert.equal(wrongPublic.ok, false);
+  if (!wrongPublic.ok) {
+    const note = wrongPublic.note ?? "";
+    assert.equal(note.includes("Ardennen"), false);
+    assert.equal(note.includes("Berg"), false);
+    assert.equal(note.toLowerCase().includes("vakantie"), false);
+  }
+  const post = sources.find((item) => item.id === colleaguePost.id);
+  assert.equal(post?.title, colleaguePost.title);
+  assert.equal(post?.author, colleaguePost.author);
+  assert.equal(post?.body, colleaguePost.body);
+  assert.match(post?.audience ?? "", /Openbaar/);
+  assert.match(post?.audience ?? "", /iedereen kan dit zien/);
+  assert.equal(colleaguePost.body.toLowerCase().includes("kade"), false);
   assert.equal(grade("ch1-login", { spots: ["lanyard", "badge", "sign", "plan"] }).ok, true);
   assert.equal(grade("ch1-login", { spots: ["badge", "plan", "sign", "mug"] }).ok, false);
   assert.equal(grade("ch1-nodes", { links: { lead: "mara", place: "dok", vendor: "helix", leak: "adler", trust: "listing" } }).ok, true);
@@ -219,6 +238,24 @@ test("KADE opent het verhaal stap voor stap", () => {
   assert.equal(hintText("ch3-logic", 3).join(" ").includes("dit is de hacker"), false);
 });
 
+test("opdrachtregels noemen de handeling en niet het antwoord", () => {
+  const needed = [
+    "ch1-bays", "ch1-login", "ch1-nodes", "ch1-ports",
+    "ch2-acrostic", "ch2-meta", "ch2-timeline", "ch2-trace",
+    "ch3-logic", "ch3-path", "ch3-boot", "ch3-cables",
+    "ch4-symbols", "ch4-sequence", "ch4-rotor", "ch4-backup", "ch4-decode",
+    "ch5-camera", "ch5-places", "ch5-share", "ch5-accuse",
+    "access", "revoke", "seals", "backup-check", "shutdown",
+  ];
+  const banned = ["N74192", "DOCK-244", "helix-svc", "ROUTE-7", "SEAL", "kluis-nacht", "HX-19", "Adler", "unintended", "onbedoeld", "helix-event.co", "CRU", "vierkant", "22"];
+  for (const id of needed) {
+    const cue = puzzleCues[id];
+    assert.ok(cue?.text && cue.action, id);
+  }
+  const blob = Object.values(puzzleCues).map((cue) => `${cue.text} ${cue.action}`).join("\n");
+  for (const word of banned) assert.equal(blob.includes(word), false, word);
+});
+
 test("demo landt op het gekozen moment", () => {
   assert.equal(demoBeat("briefing"), "office");
   assert.equal(demoBeat("kade"), "incident");
@@ -368,6 +405,41 @@ test("de finale eist sporen en een gesloten deellink", () => {
   const hint = hintText("ch6-shutdown", 3).join(" ");
   assert.equal(hint.includes("N74192") || hint.includes("DOCK-244") || hint.includes("helix-svc"), false);
   assert.equal(demoBeat("finale"), "m6");
+});
+
+test("de finalekaart noemt het juiste account niet vooraf de hacker", () => {
+  const card = finaleSessions.find((item) => item.id === "helix-svc");
+  const text = `${card?.title ?? ""} ${card?.where ?? ""} ${card?.note ?? ""}`.toLowerCase();
+  assert.equal(text.includes("hacker"), false);
+  assert.equal(text.includes("deur van kade"), false);
+  assert.equal(text.includes("kade"), false);
+});
+
+test("hintniveau 1 geeft het antwoord nog niet", () => {
+  assert.equal(hintText("ch1-ports", 1).join(" ").includes("Nexora Day"), false);
+  const bayHint = hintText("ch1-bays", 1).join(" ");
+  assert.equal(bayHint.includes("Mara"), false);
+  assert.equal(bayHint.includes("Berg"), false);
+  assert.equal(bayHint.includes("Ardennen"), false);
+  assert.equal(hintText("ch6-seals", 1).join(" ").includes("SEAL"), false);
+});
+
+test("demo is in productie dicht voor spelers", () => {
+  const env = process.env as Record<string, string | undefined>;
+  const previousNode = env.NODE_ENV;
+  const previousDemo = env.DEMO_TOOLS;
+  env.NODE_ENV = "production";
+  env.DEMO_TOOLS = "true";
+  assert.equal(demoBlocked(false), true);
+  assert.equal(demoBlocked(true), false);
+  delete env.DEMO_TOOLS;
+  assert.equal(demoBlocked(true), true);
+  env.NODE_ENV = "development";
+  assert.equal(demoBlocked(false), false);
+  if (previousNode === undefined) delete env.NODE_ENV;
+  else env.NODE_ENV = previousNode;
+  if (previousDemo === undefined) delete env.DEMO_TOOLS;
+  else env.DEMO_TOOLS = previousDemo;
 });
 
 test("standaardmodus blijft escape room", () => {

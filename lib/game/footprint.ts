@@ -4,7 +4,18 @@ export const claims = [
   { id: "vendor", label: "Welke partner meebouwt" },
   { id: "leak", label: "Wie te veel deelde" },
   { id: "trust", label: "Waarom een mail van die partner geloofwaardig is" },
+  { id: "public", label: "Openbaar, iedereen kon dit lezen" },
 ] as const;
+
+/** Gewoon collega-bericht. Zelfde tekst in het kantoornieuws en in het eerste archief. */
+export const colleaguePost = {
+  id: "berg-vrij",
+  author: "T. Berg",
+  when: "vorige week",
+  title: "Twee weken de bergen in",
+  body: "Eindelijk vrij. Twee weken de Ardennen in, daarna een paar dagen aan zee. De planten mag de buurman water geven.",
+  cue: "Openbaar · iedereen kan dit zien, geen account nodig.",
+} as const;
 
 export type ClaimId = (typeof claims)[number]["id"];
 
@@ -16,6 +27,7 @@ export type Source = {
   when: string;
   title: string;
   body: string;
+  audience?: string;
   shot?: "dock" | "sheet" | "park" | "pass";
 };
 
@@ -69,6 +81,16 @@ export const sources: Source[] = [
     when: "heel jaar",
     title: "Helix Events",
     body: "Helix Events — evenementenbouw. Vaste partner van Nexora voor zaalopbouw, vloer en crew. Genoemd op de publieke partnerpagina.",
+  },
+  {
+    id: colleaguePost.id,
+    kind: "post",
+    outlet: "Social",
+    author: colleaguePost.author,
+    when: colleaguePost.when,
+    title: colleaguePost.title,
+    body: colleaguePost.body,
+    audience: colleaguePost.cue,
   },
   {
     id: "news-week",

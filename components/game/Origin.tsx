@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   BREACH_LINE,
   BRIEFING_LINES,
@@ -35,6 +35,64 @@ function speak(line: string, audio: boolean) {
   window.speechSynthesis.speak(utterance);
 }
 
+function briefTypeMs(text: string) {
+  if (!text) return 0;
+  return Math.min(1450, Math.max(480, text.length * 22));
+}
+
+function subscribeReducedMotion(onChange: () => void) {
+  const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+  media.addEventListener("change", onChange);
+  return () => media.removeEventListener("change", onChange);
+}
+
+function reducedMotionNow() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function OpsField() {
+  return (
+    <svg className="og-net" viewBox="0 0 1440 900" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="og-ops-veil" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#071422" stopOpacity="0.82" />
+          <stop offset="34%" stopColor="#071422" stopOpacity="0.46" />
+          <stop offset="58%" stopColor="#071422" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <g fill="none" stroke="#6aafd8" strokeWidth="1.25" opacity="0.62">
+        <path d="M780 240H960l150-90 170 110 150-50" />
+        <path d="M960 240l90 160 180 30" />
+        <path d="M1110 150l70 250" />
+        <path d="M1230 400H1040l-80 170 210 90 160-110" />
+        <path d="M1230 400l130 150-70 130" />
+        <path d="M840 580h190l140 150" />
+        <path d="M1290 640l90-70" />
+      </g>
+      <g fill="#b7daf3">
+        <circle cx="780" cy="240" r="3.2" />
+        <circle cx="960" cy="240" r="3.4" />
+        <circle cx="1110" cy="150" r="3" />
+        <circle cx="1430" cy="210" r="2.6" />
+        <circle cx="1050" cy="400" r="3.2" />
+        <circle cx="1230" cy="400" r="3" />
+        <circle cx="960" cy="570" r="2.8" />
+        <circle cx="840" cy="580" r="3" />
+        <circle cx="1030" cy="660" r="3.2" />
+        <circle cx="1280" cy="550" r="3" />
+        <circle cx="1370" cy="570" r="2.6" />
+        <circle cx="1170" cy="730" r="3" />
+        <circle cx="1290" cy="640" r="2.8" />
+      </g>
+      <g>
+        <circle cx="1280" cy="260" r="5" fill="#d24b5e" />
+        <circle cx="1280" cy="260" r="12" fill="none" stroke="#d24b5e" strokeWidth="1" opacity="0.7" />
+      </g>
+      <rect width="1440" height="900" fill="url(#og-ops-veil)" />
+    </svg>
+  );
+}
+
 export function OriginPrologue({
   code,
   seen,
@@ -49,15 +107,15 @@ export function OriginPrologue({
   onSeen: (scene: string) => void;
 }) {
   const [index, setIndex] = useState(0);
-  const [reduce, setReduce] = useState(false);
+  const reduce = useSyncExternalStore(subscribeReducedMotion, reducedMotionNow, () => false);
   const [step, setStep] = useState(0);
   const [glitch, setGlitch] = useState(false);
+  const [typing, setTyping] = useState({ step: 0, count: 0 });
   const scene = PROLOGUE_SCENES[index];
+  const typed = scene === "brief" && !reduce && typing.step === step ? typing.count : 0;
 
   useEffect(() => {
     setIndex(startIndex(seen, code));
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduce(media.matches);
   }, [code, seen]);
 
   useEffect(() => {
@@ -77,11 +135,16 @@ export function OriginPrologue({
     const pace = reduce ? 0.42 : 1;
     const wait = (ms: number) => window.setTimeout(() => undefined, ms * pace);
     if (scene === "brief") {
-      if (step < BRIEFING_LINES.length - 1) {
-        const timer = window.setTimeout(() => setStep((value) => value + 1), 4800 * pace);
+      if (reduce) {
+        const timer = window.setTimeout(() => finish("brief"), 7000);
         return () => window.clearTimeout(timer);
       }
-      const timer = window.setTimeout(() => finish("brief"), 3200 * pace);
+      const line = BRIEFING_LINES[step] ?? "";
+      const hold = step < BRIEFING_LINES.length - 1 ? 680 : 1300;
+      const timer = window.setTimeout(() => {
+        if (step < BRIEFING_LINES.length - 1) setStep((value) => value + 1);
+        else finish("brief");
+      }, briefTypeMs(line) + hold);
       return () => window.clearTimeout(timer);
     }
     if (scene === "title") {
@@ -121,6 +184,23 @@ export function OriginPrologue({
     return () => window.clearTimeout(wait(0));
   }, [scene, step, reduce, glitch]);
 
+  useEffect(() => {
+    if (scene !== "brief" || reduce) return;
+    const line = BRIEFING_LINES[step] ?? "";
+    if (!line) return;
+    const duration = briefTypeMs(line);
+    const tick = duration / line.length;
+    let count = 1;
+    setTyping({ step, count });
+    const timer = window.setInterval(() => {
+      count += 1;
+      const next = Math.min(count, line.length);
+      setTyping({ step, count: next });
+      if (next >= line.length) window.clearInterval(timer);
+    }, tick);
+    return () => window.clearInterval(timer);
+  }, [scene, step, reduce]);
+
   function finish(id: string) {
     sessionStorage.setItem(`eth-origin-${code}`, id);
     onSeen(id);
@@ -130,7 +210,8 @@ export function OriginPrologue({
   if (!scene) return null;
 
   return (
-    <section className={`og${glitch && !reduce ? " og-glitch" : ""}`} aria-label="De oorsprong">
+    <section className={`og${scene === "brief" ? " og-ops" : ""}${glitch && !reduce ? " og-glitch" : ""}`} aria-label="De oorsprong">
+      {scene === "brief" && <OpsField />}
       <header className="og-top">
         <strong>NEXORA TECHNOLOGIES</strong>
         <span>SECURITY OPERATIONS</span>
@@ -138,11 +219,24 @@ export function OriginPrologue({
         <button type="button" onClick={() => { sessionStorage.setItem(`eth-origin-${code}`, "skip"); onSeen("skip"); }}>Naar Mara</button>
       </header>
       <div className="og-stage">
+        {scene === "brief" && <p className="og-ops-status" aria-hidden="true"><i /> signaal</p>}
         {scene === "brief" && (
           <div className="og-brief">
             <p className="kicker">CONFIDENTIAL INCIDENT BRIEFING</p>
             <div className="og-lines">
-              {BRIEFING_LINES.slice(0, step + 1).map((line) => <p key={line}>{line}</p>)}
+              {(reduce ? BRIEFING_LINES : BRIEFING_LINES.slice(0, step + 1)).map((line, lineIndex) => {
+                const active = !reduce && lineIndex === step;
+                const visible = active ? line.slice(0, typed) : line;
+                return (
+                  <p key={line}>
+                    <span className="og-sr">{line}</span>
+                    <span aria-hidden="true">
+                      {visible}
+                      {active && <span className="og-caret" />}
+                    </span>
+                  </p>
+                );
+              })}
             </div>
           </div>
         )}

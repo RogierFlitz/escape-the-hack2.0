@@ -1,0 +1,105 @@
+.rs {
+  --rs-bg: #07111c;
+  --rs-panel: rgba(10, 22, 38, 0.94);
+  --rs-line: rgba(120, 210, 255, 0.22);
+  color: #e7f4ff;
+  background:
+    radial-gradient(900px 420px at 0% 0%, rgba(62, 224, 255, 0.08), transparent 55%),
+    var(--rs-bg);
+  min-height: 100%;
+  padding: 16px;
+}
+.rs-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow: auto;
+  background: #07111c;
+}
+.rs-wrap { width: min(1120px, 100%); margin: 0 auto; display: grid; gap: 14px; }
+.rs-top, .rs-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.rs h1 { font-size: clamp(28px, 4vw, 46px); letter-spacing: 0.04em; }
+.rs h2 { font-size: 20px; }
+.rs-kicker { margin: 0; color: #7ee7ff; letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; }
+.rs-badge, .rs-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--rs-line);
+  background: #0c1a2b;
+}
+.rs-badge.ok, .rs-chip.ok { color: #7dffc3; border-color: rgba(80, 255, 190, 0.45); }
+.rs-badge.bad, .rs-chip.bad { color: #ffb4c0; border-color: rgba(255, 90, 110, 0.5); }
+.rs-badge.wait { color: #ffd27a; border-color: rgba(255, 180, 70, 0.45); }
+.rs-score {
+  font-size: clamp(36px, 6vw, 64px);
+  color: #7dffc3;
+  font-variant-numeric: tabular-nums;
+}
+.rs-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.rs-tabs button, .rs button.rs-go {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--rs-line);
+  background: #0d1b2c;
+  color: inherit;
+  cursor: pointer;
+}
+.rs-tabs button[aria-selected="true"] { border-color: #7ee7ff; color: #7ee7ff; }
+.rs-panel { display: none; }
+.rs-panel.on { display: grid; gap: 12px; }
+.rs-stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.rs-missions, .rs-advice { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rs-card, .rs-note {
+  background: var(--rs-panel);
+  border: 1px solid var(--rs-line);
+  border-radius: 16px;
+  padding: 12px 14px;
+  min-width: 0;
+}
+.rs-card b, .rs-card strong { display: block; }
+.rs-card small, .rs-muted { color: #9eb4c9; display: block; }
+.rs-card ul, .rs-note ul { margin: 8px 0 0; padding-left: 18px; }
+.rs-card li + li, .rs-note li + li { margin-top: 4px; }
+.rs-good { color: #9af6cf; }
+.rs-bad { color: #ffb089; }
+.rs-bar { height: 8px; border-radius: 99px; background: #13283c; overflow: hidden; margin-top: 8px; }
+.rs-bar span { display: block; height: 100%; background: linear-gradient(90deg, #1283c9, #3dffb0); }
+.rs-board { display: grid; gap: 8px; }
+.rs-line {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--rs-line);
+  background: #0c192b;
+  min-height: 64px;
+}
+.rs-line.win { border-color: rgba(80, 255, 190, 0.7); box-shadow: 0 0 24px rgba(61, 255, 176, 0.15); }
+.rs-line b { font-size: 18px; }
+.rs-meta { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 8px 14px; color: #9eb4c9; font-size: 13px; }
+.rs-stage { text-align: center; padding: 24px 8px 40px; }
+.rs-stage h1 { font-size: clamp(40px, 8vw, 84px); margin: 8px 0; }
+.rs-podium { display: grid; gap: 10px; margin-top: 18px; text-align: left; }
+@media (prefers-reduced-motion: no-preference) {
+  .rs-score, .rs-line.win { animation: rs-in 700ms ease; }
+}
+@keyframes rs-in { from { opacity: 0.35; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (max-width: 720px) {
+  .rs { padding: 12px; }
+  .rs-missions, .rs-advice, .rs-stats { grid-template-columns: 1fr; }
+  .rs-line { grid-template-columns: 40px minmax(0, 1fr); }
+  .rs-line .rs-score { font-size: 22px; }
+}
+@media print {
+  .rs-overlay { position: static; overflow: visible; }
+  .rs-noprint { display: none !important; }
+  .rs-panel { display: grid !important; break-inside: avoid; }
+  .rs { background: white; color: #102033; }
+  .rs-card, .rs-note, .rs-line { background: white; color: #102033; }
+}

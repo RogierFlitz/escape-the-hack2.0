@@ -1,18 +1,46 @@
 import { NextResponse } from "next/server";
-import { checkPassword, isAdmin, setAdminCookie, usingDefaultPassword } from "@/lib/auth";
+import {
+  adminConfigError,
+  checkPassword,
+  clearLoginFailures,
+  loginClientKey,
+  loginLimited,
+  noteLoginFailure,
+  requestIsHttps,
+  usingDefaultPassword,
+} from "@/lib/admin-gate";
+import { isAdmin, setAdminCookie } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({ ok: true, authenticated: await isAdmin(), devHint: usingDefaultPassword() });
+  const problem = adminConfigError();
+  if (problem) {
+    return NextResponse.json({ ok: false, configured: false, authenticated: false, error: problem }, { status: 503 });
+  }
+  return NextResponse.json({ ok: true, configured: true, authenticated: await isAdmin(), devHint: usingDefaultPassword() });
 }
 
 export async function POST(request: Request) {
+  const problem = adminConfigError();
+  if (problem) {
+    return NextResponse.json({ ok: false, configured: false, error: problem }, { status: 503 });
+  }
+  const key = loginClientKey(request);
+  const blocked = loginLimited(key);
+  if (blocked.limited) {
+    return NextResponse.json({ ok: false, error: "Te veel pogingen. Probeer het later opnieuw." }, { status: 429 });
+  }
   const body = (await request.json().catch(() => null)) as { password?: string } | null;
   if (!body?.password || !checkPassword(body.password)) {
+    const failure = noteLoginFailure(key);
+    if (failure.limited) {
+      return NextResponse.json({ ok: false, error: "Te veel pogingen. Probeer het later opnieuw." }, { status: 429 });
+    }
     return NextResponse.json({ ok: false, error: "Wachtwoord klopt niet." }, { status: 401 });
   }
-  await setAdminCookie();
+  clearLoginFailures(key);
+  await setAdminCookie(requestIsHttps(request));
   return NextResponse.json({ ok: true });
 }

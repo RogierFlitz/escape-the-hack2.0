@@ -4,7 +4,7 @@ import { useState } from "react";
 import { DEMO_CODE, demoStops, type DemoStop } from "@/lib/game/demo";
 
 export function demoToolsOn() {
-  return process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEMO_TOOLS === "true";
+  return process.env.NODE_ENV !== "production";
 }
 
 function clearDemoClient(code: string) {

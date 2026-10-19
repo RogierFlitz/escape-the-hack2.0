@@ -6,7 +6,7 @@
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
-    "test": "tsx --test tests/engine.test.ts",
+    "test": "tsx --conditions=react-server --test --test-concurrency=1 tests/engine.test.ts tests/flow.test.ts tests/results.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

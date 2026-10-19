@@ -1,153 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  boardEvidence,
-  boardQuestions,
-  claims,
-  noraArchive,
-  reconChoices,
-  sources,
-  type Source,
-} from "@/lib/game/footprint";
+import { boardEvidence, boardQuestions, reconChoices } from "@/lib/game/footprint";
+import { TaskCue } from "./puzzles/ui";
+import { clearDraft, useDraft } from "./footprint/draft";
 
-type Pin = { id: string; claim: string };
-
-function useDraft<T>(id: string, initial: T) {
-  const key = `eth-fp-${id}`;
-  const [value, setValue] = useState<T>(initial);
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) setValue(JSON.parse(raw) as T);
-    } catch {
-      /* keep the empty dossier */
-    }
-    setReady(true);
-  }, [key]);
-  useEffect(() => {
-    if (!ready) return;
-    localStorage.setItem(key, JSON.stringify(value));
-  }, [key, ready, value]);
-  return [value, setValue] as const;
-}
-
-function clearDraft(id: string) {
-  localStorage.removeItem(`eth-fp-${id}`);
-}
-
-export function ArchivePuzzle({
-  solved,
-  busy,
-  onSolve,
-}: {
-  solved: boolean;
-  busy: boolean;
-  onSolve: (payload: unknown) => void;
-}) {
-  const [pins, setPins] = useDraft<Pin[]>("ch1-bays", []);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [claim, setClaim] = useState("");
-  const [zoom, setZoom] = useState(false);
-  const open = sources.find((source) => source.id === openId) ?? null;
-
-  useEffect(() => {
-    if (solved) clearDraft("ch1-bays");
-  }, [solved]);
-
-  function pinSource() {
-    if (!open || !claim) return;
-    setPins((current) => [
-      ...current.filter((item) => item.id !== open.id && item.claim !== claim),
-      { id: open.id, claim },
-    ]);
-    setClaim("");
-  }
-
-  const filled = claims.filter((item) => pins.some((pin) => pin.claim === item.id)).length;
-
-  return (
-    <div className="fp">
-      <div className="fp-main">
-        {!open && <p className="fp-nora">{noraArchive}</p>}
-        {open ? (
-          <article className={`fp-doc ${open.kind}${zoom ? " zoomed" : ""}`}>
-            <header>
-              <button className="btn btn-ghost" type="button" onClick={() => { setOpenId(null); setZoom(false); }}>Archief</button>
-              <span>{open.outlet}</span>
-              <span>{open.when}</span>
-            </header>
-            <p className="fp-by">{open.author}</p>
-            <h2>{open.title}</h2>
-            {open.shot && <Shot kind={open.shot} zoom={zoom} onZoom={() => setZoom((value) => !value)} />}
-            <p>{open.body}</p>
-            <div className="fp-claim">
-              <label>
-                Dit toont
-                <select value={claim} onChange={(event) => setClaim(event.target.value)}>
-                  <option value="">kies een verband</option>
-                  {claims.map((item) => (
-                    <option key={item.id} value={item.id}>{item.label}</option>
-                  ))}
-                </select>
-              </label>
-              <button className="btn btn-primary" type="button" disabled={!claim || solved} onClick={pinSource}>Vastleggen</button>
-            </div>
-          </article>
-        ) : (
-          <div className="fp-grid">
-            {sources.map((source) => (
-              <button key={source.id} className={`fp-card ${source.kind}${pins.some((pin) => pin.id === source.id) ? " kept" : ""}`} type="button" onClick={() => { setOpenId(source.id); setZoom(false); setClaim(pins.find((pin) => pin.id === source.id)?.claim ?? ""); }}>
-                <small>{source.outlet}</small>
-                <strong>{source.title}</strong>
-                <span>{source.author} · {source.when}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      <aside className="fp-side">
-        <p className="kicker">Dossier</p>
-        <p className="fp-count">{filled} / {claims.length}</p>
-        {claims.map((item) => {
-          const pin = pins.find((row) => row.claim === item.id);
-          const source = sources.find((row) => row.id === pin?.id);
-          return (
-            <div key={item.id} className={`fp-slot${source ? " filled" : ""}`}>
-              <small>{item.label}</small>
-              <strong>{source ? source.title : "—"}</strong>
-              {source && (
-                <button type="button" onClick={() => setPins((current) => current.filter((row) => row.claim !== item.id))}>weg</button>
-              )}
-            </div>
-          );
-        })}
-        <button className="btn btn-mint" type="button" disabled={busy || solved || filled < claims.length} onClick={() => onSolve({ pins })}>
-          Verbanden indienen
-        </button>
-      </aside>
-    </div>
-  );
-}
-
-function Shot({ kind, zoom, onZoom }: { kind: NonNullable<Source["shot"]>; zoom: boolean; onZoom: () => void }) {
-  return (
-    <button className={`fp-still ${kind}${zoom ? " big" : ""}`} type="button" onClick={onZoom}>
-      {kind === "dock" && <span className="fp-sign">DOKZAAL</span>}
-      {kind === "sheet" && (
-        <span className="fp-paper">
-          <b>Nexora Day</b>
-          <i>07:30 crew</i>
-          <i>vloer Helix</i>
-        </span>
-      )}
-      {kind === "park" && <span className="fp-trees" />}
-      {kind === "pass" && <span className="fp-blurcard">NEXORA</span>}
-      <em>{zoom ? "kleiner" : "vergroten"}</em>
-    </button>
-  );
-}
+export { ArchivePuzzle } from "./footprint/ArchiveDesk";
 
 const hotspots = [
   { id: "sign", label: "Bord" },
@@ -186,6 +44,7 @@ export function PhotoPuzzle({
 
   return (
     <div className="fp fp-photo">
+      <TaskCue id="ch1-login" />
       <div className="fp-lens" data-zoom={zoom >= 1.55 ? "in" : "out"} ref={lens}>
         <div className="fp-tools">
           <button className="btn" type="button" onClick={() => setZoom((value) => Math.max(1, Number((value - 0.45).toFixed(2))))}>−</button>
@@ -250,6 +109,7 @@ export function BoardPuzzle({
 
   return (
     <div className="fp fp-board">
+      <TaskCue id="ch1-nodes" />
       <div className="fp-main">
         <p className="kicker">Bewijsstukken</p>
         <div className="fp-chips">
@@ -320,6 +180,7 @@ export function ReconPuzzle({
 
   return (
     <div className="fp fp-recon">
+      <TaskCue id="ch1-ports" />
       <div className="fp-zip">
         <header>
           <strong>recon-nexora.zip</strong>

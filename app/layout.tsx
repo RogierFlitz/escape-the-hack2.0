@@ -1,15 +1,27 @@
 import type { Metadata, Viewport } from "next";
-import { Share_Tech_Mono, Sora } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
+import "./os.css";
 
-const sora = Sora({ subsets: ["latin"], variable: "--font-sora" });
-const mono = Share_Tech_Mono({ subsets: ["latin"], weight: "400", variable: "--font-mono" });
+const sora = localFont({
+  src: [
+    { path: "../fonts/sora-400.ttf", weight: "400", style: "normal" },
+    { path: "../fonts/sora-600.ttf", weight: "600", style: "normal" },
+  ],
+  variable: "--font-sora",
+  display: "swap",
+});
+const mono = localFont({
+  src: "../fonts/share-tech-mono.ttf",
+  weight: "400",
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Escape the Hack 2.0",
   description: "System Breach — een digitale escape room voor Flitz-events.",
   applicationName: "Escape the Hack 2.0",
-  manifest: "/manifest.webmanifest",
   icons: { icon: "/icon.svg" },
   appleWebApp: { capable: true, title: "Escape the Hack", statusBarStyle: "black-translucent" },
 };

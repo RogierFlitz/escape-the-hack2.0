@@ -1,8 +1,8 @@
 const hints: Record<string, [string, string, string]> = {
   "ch1-bays": [
     "Open bronnen die over het evenement, een partner of een medewerker gaan. Niet elke foto hoort daarbij.",
-    "Vijf vragen, vijf verschillende bronnen. Eén noemt wie leidt, één waar, één de partner, één iemand die iets meefotografeerde, één waarom die partnernaam vertrouwen wekt.",
-    "De leider staat in het bedrijfsbericht. De zaal staat op de opbouwfoto. De partner heet in het bericht over vloer en rigging. De post met de planning op tafel is het lek. De openbare partnerkaart maakt een vervalste mail geloofwaardig.",
+    "Zes vragen, zes verschillende bronnen. Eén noemt wie leidt, één waar, één de partner, één iemand die iets meefotografeerde, één waarom die partnernaam vertrouwen wekt, en één wat iedereen kon lezen.",
+    "De leider staat in het bedrijfsbericht. De zaal staat op de opbouwfoto. De partner heet in het bericht over vloer en rigging. De post met de planning op tafel is het lek. De openbare partnerkaart maakt een vervalste mail geloofwaardig. Het socialbericht over twee weken vrij laat zien dat iedereen die vakantie kon lezen.",
   ],
   "ch1-login": [
     "Zoom in op de tafel en de achtergrond. Niet elk voorwerp is een spoor.",
