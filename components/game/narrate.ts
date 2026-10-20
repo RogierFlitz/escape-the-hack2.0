@@ -1,5 +1,7 @@
-const RATE = 0.7;
-const REST_MS = 900;
+const RATE = 0.94;
+const REST_MS = 380;
+const MALE = ["maarten", "frank", "daan", "xander", "ruben", "guy", "bart", "bram"];
+const FEMALE = ["fenna", "fleur", "colette", "mara", "emma", "hanna", "claire", "sabrina"];
 
 let token = 0;
 let active = "";
@@ -10,18 +12,17 @@ function scoreVoice(voice: SpeechSynthesisVoice) {
   const lang = voice.lang.toLowerCase();
   if (!lang.startsWith("nl")) return -1;
   let score = lang.startsWith("nl-nl") ? 10 : 4;
-  if (name.includes("natural") || name.includes("neural") || name.includes("premium")) score += 50;
-  if (name.includes("online")) score += 8;
-  if (name.includes("frank")) score += 14;
-  if (name.includes("fleur")) score += 11;
-  if (name.includes("google")) score += 6;
+  if (name.includes("natural") || name.includes("neural") || name.includes("premium")) score += 24;
+  if (name.includes("online")) score += 6;
+  if (MALE.some((part) => name.includes(part)) || /\bmale\b/.test(name)) score += 80;
+  if (FEMALE.some((part) => name.includes(part)) || /\bfemale\b/.test(name)) score -= 70;
   return score;
 }
 
 function pickVoice() {
   const voices = window.speechSynthesis.getVoices();
   let best: SpeechSynthesisVoice | null = null;
-  let bestScore = 0;
+  let bestScore = Number.NEGATIVE_INFINITY;
   for (const voice of voices) {
     const score = scoreVoice(voice);
     if (score > bestScore) {
@@ -80,11 +81,14 @@ export function narrate(line: string, audio: boolean, onDone?: () => void) {
       if (mine !== token) return;
       const utterance = new SpeechSynthesisUtterance(text);
       const voice = pickVoice();
-      const natural = voice ? /natural|neural|premium/i.test(voice.name) : false;
+      const name = voice?.name.toLowerCase() ?? "";
+      const male = MALE.some((part) => name.includes(part)) || /\bmale\b/.test(name);
+      const natural = /natural|neural|premium/i.test(name);
       utterance.lang = voice?.lang || "nl-NL";
       if (voice) utterance.voice = voice;
       utterance.rate = RATE;
-      utterance.pitch = natural ? 0.96 : 0.9;
+      utterance.pitch = male ? (natural ? 0.74 : 0.68) : 0.62;
+      utterance.volume = 1;
       utterance.onend = finish;
       utterance.onerror = (event) => {
         if (event.error === "interrupted" || event.error === "canceled") return;
