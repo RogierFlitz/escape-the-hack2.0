@@ -63,6 +63,21 @@
 .gcc-card small { display: block; color: #8fb0c8; }
 .gcc-card strong { font-size: 26px; }
 .gcc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.gcc-session-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.gcc-session-tools input { flex: 1 1 240px; width: auto; max-width: none; }
+.gcc-sessions { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.gcc-session-card { display: flex; flex-direction: column; gap: 12px; min-height: 100%; padding: 16px; }
+.gcc-session-card header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.gcc-session-card h2 { margin: 0; font-size: 22px; line-height: 1.2; }
+.gcc-when { margin: 0 0 6px; color: #e7f2fb; font-size: 15px; font-weight: 700; }
+.gcc-when small { display: block; margin-bottom: 2px; color: #67e8f9; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.gcc-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.gcc-facts li { border-radius: 999px; background: #102233; color: #d5e6f4; font-size: 13px; padding: 4px 10px; }
+.gcc-session-actions { margin-top: auto; display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid rgba(125, 211, 252, 0.12); }
+.gcc-session-actions .gcc-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gcc-session-actions .gcc-row:first-child { grid-template-columns: 1.2fr 1fr 1fr; }
+.gcc-session-card .gcc-btn { min-height: 36px; padding: 0 8px; font-size: 14px; justify-content: center; text-align: center; display: inline-flex; align-items: center; }
+.gcc-session-card .gcc-company { font-size: 16px; }
 .gcc-session h2, .gcc-panel h2, .gcc-panel h3 { margin: 0 0 8px; }
 .gcc-meta { color: #9fb6c9; font-size: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
 .gcc-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -80,6 +95,8 @@
 .gcc-btn.ok { background: #047857; border-color: #34d399; }
 .gcc-btn.warn { background: #9a3412; border-color: #fb923c; }
 .gcc-btn.bad { background: #7f1d1d; border-color: #f87171; }
+.gcc-company { margin: 0 0 8px; color: #67e8f9; font-size: 20px; font-weight: 700; }
+.gcc-edit { margin-top: 12px; }
 .gcc label { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
 .gcc input, .gcc select, .gcc textarea { width: min(100%, 420px); }
 .gcc textarea { min-height: 88px; resize: vertical; padding: 10px 12px; }
@@ -101,7 +118,19 @@
 .gcc-pill.bad { color: #fca5a5; background: rgba(239, 68, 68, 0.12); }
 .gcc-pill.done { color: #7dd3fc; background: rgba(14, 165, 233, 0.12); }
 .gcc-pill.wait { color: #cbd5e1; background: rgba(148, 163, 184, 0.12); }
-.gcc-live { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; align-items: start; }
+.gcc-live { display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(340px, 1.1fr); gap: 12px; align-items: start; }
+.gcc-live-teams { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.gcc-live-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; width: 100%; text-align: left; cursor: pointer; }
+.gcc-live-card strong { display: block; font-size: 22px; }
+.gcc-live-card.on { border-color: #22d3ee; box-shadow: inset 0 0 0 1px #22d3ee; }
+.gcc-live-card .qr { width: 112px; height: 112px; }
+.gcc-statgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 12px; }
+.gcc-statgrid div { background: #102233; border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.gcc-statgrid small { display: block; color: #8fb0c8; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+.gcc-statgrid strong { display: block; font-size: 15px; overflow-wrap: anywhere; }
+.gcc-hintbox { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(125, 211, 252, 0.16); }
+.gcc-detail input, .gcc-detail select, .gcc-detail textarea { width: 100%; max-width: none; }
+.gcc-detail .gcc-row input { flex: 1 1 160px; width: auto; }
 .gcc-detail { position: sticky; top: 12px; }
 .gcc-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .gcc-table th, .gcc-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid rgba(125, 211, 252, 0.12); }
@@ -126,7 +155,7 @@
 }
 @media (max-width: 760px) {
   .gcc-cards, .gcc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .gcc-dash-row { grid-template-columns: 1fr; }
+  .gcc-dash-row, .gcc-sessions { grid-template-columns: 1fr; }
   .gcc-main { padding: 12px; }
 }
 @media print {

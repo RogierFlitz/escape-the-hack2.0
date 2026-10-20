@@ -93,6 +93,7 @@ export function present(session: Session, team: Team, teams: Team[], now: number
       hintPenaltySec: session.hintPenaltySec,
       mode: session.mode ?? "escape",
       sector: session.sector ?? "general",
+      clientName: session.clientName ?? "",
     },
     chapter: { id: chapter.id, title: chapter.title, subtitle: chapter.subtitle, index: chapter.id, total: chapters.length },
     progress: { solved: team.solved.length, total: TOTAL, chaptersDone: completedChapters(team.solved) },

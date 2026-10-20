@@ -27,6 +27,8 @@ export async function POST(request: Request) {
     teams?: string[];
     mode?: string;
     sector?: string;
+    client?: string;
+    eventDate?: string;
   } | null;
   const teams = (body?.teams ?? []).map((name) => clip(name, 32)).filter(Boolean);
   const durationMin = Number(body?.durationMin);
@@ -49,6 +51,8 @@ export async function POST(request: Request) {
       teamNames: teams,
       mode: parseMode(body.mode),
       sector: parseSector(body.sector),
+      clientName: clip(body.client, 80),
+      eventDate: clip(body.eventDate, 10),
     });
     return NextResponse.json({ ok: true, session: created.session, teams: created.teams });
   } catch (error) {

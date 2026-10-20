@@ -23,6 +23,8 @@ type SessionRow = {
   ended_at: number | null;
   mode?: string | null;
   sector?: string | null;
+  client_name?: string | null;
+  event_date?: string | null;
 };
 
 type TeamRow = {
@@ -94,6 +96,8 @@ function sessionOf(row: SessionRow): Session {
     endedAt: numOrNull(row.ended_at),
     mode: parseMode(row.mode),
     sector: parseSector(row.sector),
+    clientName: String(row.client_name ?? ""),
+    eventDate: String(row.event_date ?? ""),
   };
 }
 
@@ -123,7 +127,7 @@ function teamOf(row: TeamRow): Team {
   };
 }
 
-const SESSION_COLS = `id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector`;
+const SESSION_COLS = `id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector, client_name, event_date`;
 const TEAM_COLS = `id, session_id, name, code, status, solved_json, hints_json, instructor_hints_json, inventory_json, events_seen_json, penalty_sec, fails, finished_at, updated_at, last_progress_at, breach_offset_sec, phish_reported, story_json, awareness_json, time_adjust_sec, coach_json`;
 
 export async function listSessions() {
@@ -197,6 +201,8 @@ export async function createSession(input: {
   teamNames: string[];
   mode?: GameMode;
   sector?: Sector;
+  clientName?: string;
+  eventDate?: string;
 }) {
   const db = await sql();
   const now = Date.now();
@@ -215,10 +221,12 @@ export async function createSession(input: {
     endedAt: null,
     mode: input.mode ?? "escape",
     sector: input.sector ?? "general",
+    clientName: input.clientName ?? "",
+    eventDate: input.eventDate ?? "",
   };
   await db.run(
-    `INSERT INTO sessions (id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector, client_name, event_date)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       session.id,
       session.name,
@@ -234,6 +242,8 @@ export async function createSession(input: {
       session.endedAt,
       session.mode,
       session.sector,
+      session.clientName,
+      session.eventDate,
     ],
   );
   const teams: Team[] = [];
@@ -386,15 +396,14 @@ export async function addDraftTeam(sessionId: string, name: string) {
   return { ok: true as const, team };
 }
 
-export async function updateDraft(
+export async function updateSessionDetails(
   id: string,
-  patch: Partial<Pick<Session, "name" | "durationSec" | "hintPenalty" | "hintPenaltySec" | "mode" | "sector">>,
+  patch: Partial<Pick<Session, "name" | "clientName" | "eventDate" | "durationSec" | "hintPenalty" | "hintPenaltySec" | "mode" | "sector">>,
 ) {
   const found = await getSession(id);
   if (!found) return { error: "Sessie niet gevonden." as const };
-  if (found.session.status !== "draft") return { error: "Alleen een sessie die nog niet is gestart, kan worden bewerkt." as const };
   await saveSession({ ...found.session, ...patch });
-  return { ok: true as const };
+  return { ok: true as const, startedAt: found.session.startedAt };
 }
 
 export async function deleteSession(id: string) {
@@ -489,7 +498,7 @@ export async function grantTime(input: {
 export async function saveSession(session: Session) {
   const db = await sql();
   await db.run(
-    `UPDATE sessions SET name = ?, duration_sec = ?, hint_penalty = ?, hint_penalty_sec = ?, status = ?, started_at = ?, pause_started_at = ?, paused_ms = ?, time_adjust_sec = ?, ended_at = ?, mode = ?, sector = ? WHERE id = ?`,
+    `UPDATE sessions SET name = ?, duration_sec = ?, hint_penalty = ?, hint_penalty_sec = ?, status = ?, started_at = ?, pause_started_at = ?, paused_ms = ?, time_adjust_sec = ?, ended_at = ?, mode = ?, sector = ?, client_name = ?, event_date = ? WHERE id = ?`,
     [
       session.name,
       session.durationSec,
@@ -503,6 +512,8 @@ export async function saveSession(session: Session) {
       session.endedAt,
       session.mode ?? "escape",
       session.sector ?? "general",
+      session.clientName ?? "",
+      session.eventDate ?? "",
       session.id,
     ],
   );

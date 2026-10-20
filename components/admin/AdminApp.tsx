@@ -53,6 +53,22 @@ function freshSession(session: Session, now = Date.now()) {
   return now - stamp < 18 * 60 * 60 * 1000;
 }
 
+function stampText(ms: number) {
+  return new Intl.DateTimeFormat("nl-NL", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(ms);
+}
+
+function eventDateText(value: string) {
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}-${month}-${year}`;
+}
+
+function sessionWhen(session: Session) {
+  if (session.startedAt) return { kind: "Gespeeld", text: stampText(session.startedAt) };
+  if (session.eventDate) return { kind: "Gepland", text: eventDateText(session.eventDate) };
+  return { kind: "Aangemaakt", text: stampText(session.createdAt) };
+}
+
 function progressLine(count: SessionRollup | undefined, status: string) {
   if (!count || count.teams === 0) return "Nog geen teams";
   if (status === "draft") return `${count.teams} teams klaar · de klok loopt nog niet`;
@@ -127,6 +143,7 @@ export function AdminApp() {
   const [mode, setMode] = useState<GameMode>("escape");
   const [sector, setSector] = useState<Sector>("general");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [timeOpen, setTimeOpen] = useState<null | "add" | "cut">(null);
   const [timeTeam, setTimeTeam] = useState("all");
   const [timePick, setTimePick] = useState(5);
@@ -220,13 +237,14 @@ export function AdminApp() {
   async function createSession(openLive: boolean) {
     setFormError("");
     const minutes = customDuration.trim() ? Number(customDuration) : duration;
-    const eventName = client.trim() ? `${name.trim()} — ${client.trim()}` : name.trim();
     try {
       const response = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: eventDate ? `${eventName} (${eventDate})` : eventName,
+          name: name.trim(),
+          client: client.trim(),
+          eventDate,
           durationMin: minutes,
           hintPenalty: penaltyOn,
           hintPenaltySec: penaltySec,
@@ -268,6 +286,23 @@ export function AdminApp() {
     await refreshList();
   }
 
+  async function saveDetails(id: string, fields: Record<string, unknown>) {
+    const response = await fetch(`/api/sessions/${id}/control`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "retune", ...fields }),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      setNotice(data?.error ?? "Gegevens niet bewaard.");
+      return;
+    }
+    setNotice(typeof data?.notice === "string" ? data.notice : "Gegevens bewaard.");
+    if (data?.snapshot && id === activeId) setBoard(data.snapshot as AdminSnapshot);
+    setEditId(null);
+    await refreshList();
+  }
+
   function openSession(id: string, next: View = "live") {
     setActiveId(id);
     setBoard(null);
@@ -288,6 +323,8 @@ export function AdminApp() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: `${session.name} kopie`,
+        client: session.clientName,
+        eventDate: session.eventDate,
         durationMin: Math.round(session.durationSec / 60),
         hintPenalty: session.hintPenalty,
         hintPenaltySec: session.hintPenaltySec,
@@ -354,7 +391,8 @@ export function AdminApp() {
 
   const filtered = sessions.filter((session) => {
     if (filter !== "all" && session.status !== filter) return false;
-    return session.name.toLowerCase().includes(query.trim().toLowerCase());
+    const needle = query.trim().toLowerCase();
+    return `${session.name} ${session.clientName}`.toLowerCase().includes(needle);
   });
   const currentSessions = sessions.filter((session) => session.status !== "ended" && freshSession(session));
   const featured = currentSessions.find((session) => session.status === "live" || session.status === "paused") ?? currentSessions[0] ?? null;
@@ -431,7 +469,9 @@ export function AdminApp() {
                     <span className={`gcc-pill ${featured.status === "live" ? "ok" : featured.status === "paused" ? "warn" : "wait"}`}><i />{statusLabel(featured.status)}</span>
                     <span className="gcc-note">{modeLabel(featured.mode)} · {sectorLabel(featured.sector)} · {Math.round(featured.durationSec / 60)} min</span>
                   </div>
+                  <p className="gcc-when"><small>{sessionWhen(featured).kind}</small>{sessionWhen(featured).text}</p>
                   <h2>{featured.name}</h2>
+                  {featured.clientName ? <p className="gcc-company">{featured.clientName}</p> : null}
                   <p>{progressLine(rollup.get(featured.id), featured.status)}</p>
                   <div className="gcc-bar" aria-hidden="true">
                     <span className="done" style={{ width: `${Math.round(((rollup.get(featured.id)?.completed ?? 0) / Math.max(1, rollup.get(featured.id)?.teams ?? 1)) * 100)}%` }} />
@@ -439,9 +479,13 @@ export function AdminApp() {
                   </div>
                   <div className="gcc-row">
                     <button className="gcc-btn primary" type="button" onClick={() => openSession(featured.id)}>Open live beheer</button>
+                    <button className="gcc-btn" type="button" onClick={() => setEditId(editId === featured.id ? null : featured.id)}>Gegevens aanpassen</button>
                     <button className="gcc-btn" type="button" onClick={() => openSession(featured.id, "results")}>Resultaten</button>
                     {featured.status === "draft" && <button className="gcc-btn" type="button" onClick={() => openSession(featured.id, "teams")}>Teams</button>}
                   </div>
+                  {editId === featured.id && (
+                    <SessionEditor key={`${featured.id}-${featured.clientName}-${featured.name}-${featured.mode}`} session={featured} onSave={(fields) => void saveDetails(featured.id, fields)} />
+                  )}
                 </article>
                 <div className="gcc-stats">
                   <article className="gcc-card"><small>Evenementen vandaag</small><strong>{currentSessions.length}</strong></article>
@@ -465,7 +509,7 @@ export function AdminApp() {
                   {otherCurrent.slice(0, 5).map((session) => (
                     <div key={session.id} className="gcc-dash-row">
                       <div>
-                        <strong>{session.name}</strong>
+                        <strong>{session.name}{session.clientName ? ` · ${session.clientName}` : ""}</strong>
                         <small className="gcc-note">{progressLine(rollup.get(session.id), session.status)}</small>
                       </div>
                       <span className={`gcc-pill ${session.status === "live" ? "ok" : session.status === "paused" ? "warn" : "wait"}`}><i />{statusLabel(session.status)}</span>
@@ -486,30 +530,53 @@ export function AdminApp() {
         {view === "sessions" && (
           <>
             <header className="gcc-top"><div><p className="gcc-kicker">Sessies</p><h1>Speelsessies</h1></div></header>
-            <div className="gcc-row">
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Zoek op evenement" aria-label="Zoek op evenement" />
+            <div className="gcc-session-tools">
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Zoek op evenement of bedrijf" aria-label="Zoek op evenement of bedrijf" />
               <div className="gcc-filters">
                 {([["all", "Alle"], ["draft", "Concept / klaargezet"], ["live", "Live"], ["paused", "Gepauzeerd"], ["ended", "Beëindigd"]] as const).map(([id, label]) => (
                   <button key={id} className={`gcc-btn${filter === id ? " on" : ""}`} type="button" onClick={() => setFilter(id)}>{label}</button>
                 ))}
               </div>
             </div>
-            <div className="gcc-grid">
-              {filtered.map((session) => (
-                <article key={session.id} className="gcc-panel">
-                  <h2>{session.name}</h2>
-                  <p className="gcc-note">{modeLabel(session.mode)} · {sectorLabel(session.sector)} · {statusLabel(session.status)} · {Math.round(session.durationSec / 60)} min · {rollup.get(session.id)?.teams ?? 0} teams</p>
-                  <div className="gcc-row">
-                    <button className="gcc-btn primary" type="button" onClick={() => openSession(session.id)}>Openen</button>
-                    {session.status === "draft" && <button className="gcc-btn" type="button" onClick={() => openSession(session.id, "live")}>Bewerken</button>}
-                    <button className="gcc-btn" type="button" onClick={() => void duplicate(session)}>Dupliceren</button>
-                    <button className="gcc-btn" type="button" onClick={() => openSession(session.id, "results")}>Resultaten</button>
-                    <a className="gcc-btn" href={`/api/sessions/${session.id}/export`}>Exporteren</a>
-                    {session.status !== "ended" && <button className="gcc-btn warn" type="button" onClick={() => void endSession(session.id)}>Beëindigen</button>}
-                    <button className="gcc-btn bad" type="button" onClick={() => void removeSession(session)}>Verwijderen</button>
-                  </div>
-                </article>
-              ))}
+            <div className="gcc-sessions">
+              {filtered.map((session) => {
+                const when = sessionWhen(session);
+                const teams = rollup.get(session.id)?.teams ?? 0;
+                return (
+                  <article key={session.id} className="gcc-panel gcc-session-card">
+                    <header>
+                      <div>
+                        <p className="gcc-when"><small>{when.kind}</small>{when.text}</p>
+                        <h2>{session.name}</h2>
+                        {session.clientName ? <p className="gcc-company">{session.clientName}</p> : null}
+                      </div>
+                      <span className={`gcc-pill ${session.status === "live" ? "ok" : session.status === "paused" ? "warn" : session.status === "ended" ? "done" : "wait"}`}><i />{statusLabel(session.status)}</span>
+                    </header>
+                    <ul className="gcc-facts">
+                      <li>{modeLabel(session.mode)}</li>
+                      <li>{sectorLabel(session.sector)}</li>
+                      <li>{Math.round(session.durationSec / 60)} min</li>
+                      <li>{teams} {teams === 1 ? "team" : "teams"}</li>
+                    </ul>
+                    <div className="gcc-session-actions">
+                      <div className="gcc-row">
+                        <button className="gcc-btn primary" type="button" onClick={() => openSession(session.id)}>Openen</button>
+                        <button className="gcc-btn" type="button" onClick={() => setEditId(editId === session.id ? null : session.id)}>Gegevens</button>
+                        <button className="gcc-btn" type="button" onClick={() => openSession(session.id, "results")}>Resultaten</button>
+                      </div>
+                      <div className="gcc-row">
+                        <button className="gcc-btn" type="button" onClick={() => void duplicate(session)}>Dupliceren</button>
+                        <a className="gcc-btn" href={`/api/sessions/${session.id}/export`}>Exporteren</a>
+                        {session.status !== "ended" && <button className="gcc-btn warn" type="button" onClick={() => void endSession(session.id)}>Beëindigen</button>}
+                        <button className="gcc-btn bad" type="button" onClick={() => void removeSession(session)}>Verwijderen</button>
+                      </div>
+                    </div>
+                    {editId === session.id && (
+                      <SessionEditor key={`${session.id}-${session.clientName}-${session.name}-${session.mode}-${session.sector}`} session={session} onSave={(fields) => void saveDetails(session.id, fields)} />
+                    )}
+                  </article>
+                );
+              })}
             </div>
           </>
         )}
@@ -525,7 +592,7 @@ export function AdminApp() {
             {step === 1 && (
               <section className="gcc-panel">
                 <label>Naam evenement<input value={name} onChange={(event) => setName(event.target.value)} /></label>
-                <label>Naam opdrachtgever, optioneel<input value={client} onChange={(event) => setClient(event.target.value)} /></label>
+                <label>Bedrijfsnaam<input value={client} onChange={(event) => setClient(event.target.value)} placeholder="Bijvoorbeeld Gemeente Havenstad" /></label>
                 <label>Datum<input type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} /></label>
                 <div className="gcc-row">
                   {(["escape", "awareness", "nis2"] as GameMode[]).map((item) => (
@@ -571,7 +638,8 @@ export function AdminApp() {
             )}
             {step === 4 && (
               <section className="gcc-panel">
-                <h2>{client.trim() ? `${name} — ${client.trim()}` : name}</h2>
+                <h2>{name}</h2>
+                {client.trim() ? <p className="gcc-company">{client.trim()}</p> : null}
                 <p>{modeLabel(mode)} · {sectorLabel(sector)} · {customDuration || duration} minuten</p>
                 <p>Hints: {penaltyOn ? `${penaltySec} seconden per hint` : "uit"}{eventDate ? ` · ${eventDate}` : ""}</p>
                 <p>{MODE_PLAN[mode]}</p>
@@ -672,69 +740,83 @@ function HintGift({ team, onControl }: { team: AdminTeam; onControl: (action: st
   const [puzzleId, setPuzzleId] = useState(open[0]?.id ?? "");
   const [text, setText] = useState("");
   const puzzle = open.find((item) => item.id === puzzleId) ?? open[0];
-  if (!puzzle) return <p>Geen open opdracht. Een extra hint kan zodra dit team speelt.</p>;
+  if (!puzzle) return <p>Dit team heeft geen open opdracht. Een hint kan zodra het speelt.</p>;
   const nextLevel = puzzle.level + 1;
+  const rescueSent = Boolean(puzzle.rescue && (puzzle.coach ?? []).includes(puzzle.rescue));
   return (
-    <div>
-      <h3>Extra hint</h3>
+    <div className="gcc-hintbox">
+      <h3>Hint sturen</h3>
       <label>Opdracht
-        <select value={puzzle.id} onChange={(event) => setPuzzleId(event.target.value)}>
+        <select aria-label="Opdracht voor de hint" value={puzzle.id} onChange={(event) => setPuzzleId(event.target.value)}>
           {open.map((item) => <option key={item.id} value={item.id}>{item.title} · {item.level}/3</option>)}
         </select>
       </label>
-      {puzzle.next ? (
-        <>
-          <p className="gcc-note">{puzzle.next}</p>
-          <button
-            className="gcc-btn primary"
-            type="button"
-            onClick={() => {
-              if (window.confirm(`Hint ${nextLevel} van 3 naar ${team.name}? Geen tijdstraf.\n\n${puzzle.next}`)) {
-                onControl("hint", { teamId: team.id, puzzleId: puzzle.id });
-              }
-            }}
-          >
-            Stuur hint {nextLevel}/3
-          </button>
-        </>
-      ) : (
-        <>
-          <p>De drie hints zijn gebruikt en dit team zit nog vast. Deze extra hint kost geen tijd.</p>
-          {puzzle.rescue && <p className="gcc-note">{puzzle.rescue}</p>}
-          <button
-            className="gcc-btn primary"
-            type="button"
-            disabled={!puzzle.rescue || (puzzle.coach ?? []).includes(puzzle.rescue)}
-            onClick={() => {
-              if (!puzzle.rescue) return;
-              if (window.confirm(`Extra hint naar ${team.name}? Geen tijdstraf.\n\n${puzzle.rescue}`)) {
-                onControl("coach", { teamId: team.id, puzzleId: puzzle.id, text: puzzle.rescue });
-              }
-            }}
-          >
-            {(puzzle.coach ?? []).includes(puzzle.rescue ?? "") ? "Extra hint is verstuurd" : "Stuur extra hint"}
-          </button>
-        </>
-      )}
-      {(puzzle.coach ?? []).map((line) => <p key={line} className="gcc-note">Al verstuurd: {line}</p>)}
-      <label>Eigen extra hint
-        <textarea maxLength={180} value={text} onChange={(event) => setText(event.target.value)} placeholder="Korte aanwijzing, zonder het antwoord" />
+      <p className="gcc-note">{puzzle.level}/3 hints gebruikt. Jouw tekst kost geen tijd en verschijnt bij de opdracht.</p>
+      <label>Jouw hint
+        <textarea maxLength={180} value={text} onChange={(event) => setText(event.target.value)} placeholder="Schrijf zelf een korte aanwijzing" aria-label="Jouw hint" />
       </label>
       <button
-        className="gcc-btn"
+        className="gcc-btn primary"
         type="button"
         disabled={text.trim().length < 3}
         onClick={() => {
           const line = text.trim().slice(0, 180);
-          if (window.confirm(`Eigen extra hint naar ${team.name}? Geen tijdstraf.\n\n${line}`)) {
+          if (window.confirm(`Deze hint naar ${team.name}? Geen tijdstraf.\n\n${line}`)) {
             onControl("coach", { teamId: team.id, puzzleId: puzzle.id, text: line });
             setText("");
           }
         }}
       >
-        Eigen extra hint
+        Stuur deze hint
       </button>
+      {puzzle.next ? (
+        <>
+          <p className="gcc-note">Voorbereide hint {nextLevel}/3: {puzzle.next}</p>
+          <button
+            className="gcc-btn"
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Voorbereide hint ${nextLevel} van 3 naar ${team.name}? Geen tijdstraf.\n\n${puzzle.next}`)) {
+                onControl("hint", { teamId: team.id, puzzleId: puzzle.id });
+              }
+            }}
+          >
+            Stuur voorbereide hint {nextLevel}/3
+          </button>
+        </>
+      ) : puzzle.rescue ? (
+        <>
+          <p className="gcc-note">Voorbereide extra hint: {puzzle.rescue}</p>
+          <button
+            className="gcc-btn"
+            type="button"
+            disabled={rescueSent}
+            onClick={() => {
+              if (!puzzle.rescue) return;
+              if (window.confirm(`Voorbereide extra hint naar ${team.name}? Geen tijdstraf.\n\n${puzzle.rescue}`)) {
+                onControl("coach", { teamId: team.id, puzzleId: puzzle.id, text: puzzle.rescue });
+              }
+            }}
+          >
+            {rescueSent ? "Voorbereide extra hint is verstuurd" : "Stuur voorbereide extra hint"}
+          </button>
+        </>
+      ) : null}
+      {(puzzle.coach ?? []).map((line) => <p key={line} className="gcc-note">Al verstuurd: {line}</p>)}
     </div>
+  );
+}
+
+function TeamNameEditor({ team, onSave }: { team: AdminTeam; onSave: (name: string) => void }) {
+  const [value, setValue] = useState(team.name);
+  useEffect(() => setValue(team.name), [team.id, team.name]);
+  return (
+    <label>Teamnaam
+      <span className="gcc-row">
+        <input aria-label="Teamnaam" value={value} maxLength={32} onChange={(event) => setValue(event.target.value)} />
+        <button className="gcc-btn" type="button" disabled={!value.trim() || value.trim() === team.name} onClick={() => onSave(value.trim())}>Naam bewaren</button>
+      </span>
+    </label>
   );
 }
 
@@ -762,15 +844,24 @@ function LiveDesk({
   onControl: (action: string, extra?: Record<string, unknown>) => void;
   onRetune: (fields: Record<string, unknown>) => void;
 }) {
+  useEffect(() => {
+    if (!board || board.teams.length === 0) return;
+    if (selected && board.teams.some((team) => team.id === selected.id)) return;
+    onSelect(board.teams[0].id);
+  }, [board, onSelect, selected]);
   if (!board) return <section className="gcc-panel"><h1>Live spelbeheer</h1><p>Open een sessie via het dashboard. Het teamoverzicht verschijnt hier.</p></section>;
+  const focus = selected ?? (board.teams.length === 1 ? board.teams[0] : null);
   const pausedAt = board.session.status === "paused" && board.session.pauseStartedAt ? new Date(board.session.pauseStartedAt).toLocaleTimeString("nl-NL") : null;
+  const when = sessionWhen(board.session);
   return (
     <>
       <header className="gcc-top">
         <div>
           <p className="gcc-kicker">{statusLabel(board.session.status)}</p>
           <h1>{board.session.name}</h1>
-          <p className="gcc-note">{modeLabel(board.session.mode)} · {sectorLabel(board.session.sector)} · {Math.round(board.session.durationSec / 60)} min</p>
+          {board.session.clientName ? <p className="gcc-company">{board.session.clientName}</p> : null}
+          <p className="gcc-when"><small>{when.kind}</small>{when.text}</p>
+          <p className="gcc-note">{modeLabel(board.session.mode)} · {sectorLabel(board.session.sector)} · {Math.round(board.session.durationSec / 60)} min · hintstraf {board.session.hintPenalty ? `${board.session.hintPenaltySec}s` : "uit"}</p>
         </div>
         <div className="gcc-row gcc-noprint">
           {board.session.status === "draft" && <button className="gcc-btn ok" type="button" data-testid="start-session" onClick={() => onControl("start")}>Iedereen starten</button>}
@@ -804,21 +895,28 @@ function LiveDesk({
           </button>
         </section>
       )}
-      {board.session.status === "draft" && (
-        <DraftTune session={board.session} onSave={onRetune} />
-      )}
+      <SessionFacts session={board.session} onSave={onRetune} />
       <div className="gcc-live">
-        <div className="gcc-grid">
+        <div className="gcc-live-teams">
           {board.teams.map((team) => {
             const state = teamTone(board.session.status, team);
+            const stuck = team.hintsOpen?.some((item) => item.level >= 3 && item.rescue && !item.coach.includes(item.rescue));
             return (
-              <button key={team.id} className="gcc-panel gcc-team gcc-print" type="button" onClick={() => onSelect(team.id)}>
+              <button key={team.id} className={`gcc-panel gcc-live-card gcc-print${focus?.id === team.id ? " on" : ""}`} type="button" onClick={() => onSelect(team.id)}>
                 <span>
                   <strong>{team.name}</strong>
                   <small><span className={`gcc-pill ${state.tone}`}><i />{state.label}</span></small>
                   <small>{state.link}</small>
-                  <small>Missie {team.chapter} · {team.solved}/{team.total} opgelost · {team.score} pt</small>
-                  <small className="mono">Resterend {clock(team.remainingSec)} · hints {team.hints}{team.hintsOpen?.some((item) => item.level >= 3 && item.rescue && !item.coach.includes(item.rescue)) ? " · vast, extra hint mogelijk" : ""}{team.extraSec ? ` · extra ${clock(team.extraSec)}` : ""}</small>
+                  <ul className="gcc-facts">
+                    <li>Missie {team.chapter}</li>
+                    <li>{team.currentPuzzle ?? "Geen open opdracht"}</li>
+                    <li>{team.solved}/{team.total} opgelost</li>
+                    <li>{team.score} pt</li>
+                    <li>{clock(team.remainingSec)} resterend</li>
+                    <li>{team.hints} hints</li>
+                    {team.extraSec ? <li>+{clock(team.extraSec)} extra</li> : null}
+                    {stuck ? <li>Extra hint mogelijk</li> : null}
+                  </ul>
                 </span>
                 <Qr value={`${base}/play/${team.code}`} />
               </button>
@@ -826,24 +924,40 @@ function LiveDesk({
           })}
         </div>
         <aside className="gcc-panel gcc-detail">
-          {selected ? (
+          {board.teams.length > 1 && (
+            <div className="gcc-row">
+              {board.teams.map((team) => (
+                <button key={team.id} className={`gcc-btn${focus?.id === team.id ? " primary" : ""}`} type="button" onClick={() => onSelect(team.id)}>{team.name}</button>
+              ))}
+            </div>
+          )}
+          {focus ? (
             <>
-              <h2>{selected.name}</h2>
-              <p className="mono">{selected.code}</p>
-              <p>{teamTone(board.session.status, selected).label} · {teamTone(board.session.status, selected).link}</p>
-              <p>Missie {selected.chapter}: {selected.currentPuzzle ?? "geen open opdracht"}</p>
-              <p>{selected.solved}/{selected.total} opgelost · {selected.score} pt · plek {selected.rank}</p>
-              <p>Hints {selected.hints} · instructeur {selected.instructorHints} · straf {selected.penaltySec}s</p>
-              <p className="mono">Resterend {clock(selected.remainingSec)}</p>
+              <h2>{focus.name}</h2>
+              <TeamNameEditor team={focus} onSave={(name) => onControl("rename", { teamId: focus.id, name })} />
+              <div className="gcc-statgrid">
+                <div><small>Status</small><strong>{teamTone(board.session.status, focus).label}</strong></div>
+                <div><small>Verbinding</small><strong>{teamTone(board.session.status, focus).link}</strong></div>
+                <div><small>Missie</small><strong>{focus.chapter}</strong></div>
+                <div><small>Opdracht</small><strong>{focus.currentPuzzle ?? "Geen open opdracht"}</strong></div>
+                <div><small>Opgelost</small><strong>{focus.solved}/{focus.total}</strong></div>
+                <div><small>Score</small><strong>{focus.score} pt · plek {focus.rank}</strong></div>
+                <div><small>Hints</small><strong>{focus.hints} · instructeur {focus.instructorHints}</strong></div>
+                <div><small>Hintstraf</small><strong>{focus.penaltySec}s</strong></div>
+                <div><small>Resterend</small><strong className="mono">{clock(focus.remainingSec)}</strong></div>
+                <div><small>Extra tijd</small><strong className="mono">{focus.extraSec ? clock(focus.extraSec) : "00:00"}</strong></div>
+                <div><small>Code</small><strong className="mono">{focus.code}</strong></div>
+              </div>
               <div className="gcc-row">
-                <button className="gcc-btn" type="button" onClick={() => { onTimeTeam(selected.id); onTimeOpen("add"); }}>+ Tijd</button>
-                <button className="gcc-btn" type="button" onClick={() => void navigator.clipboard.writeText(`${base}/play/${selected.code}`)}>Link kopiëren</button>
-                <button className="gcc-btn" type="button" onClick={() => void navigator.clipboard.writeText(selected.code)}>Code kopiëren</button>
+                <button className="gcc-btn" type="button" onClick={() => { onTimeTeam(focus.id); onTimeOpen("add"); }}>+ Tijd</button>
+                <button className="gcc-btn" type="button" onClick={() => { onTimeTeam(focus.id); onTimeOpen("cut"); }}>− Tijd</button>
+                <button className="gcc-btn" type="button" onClick={() => void navigator.clipboard.writeText(`${base}/play/${focus.code}`)}>Link kopiëren</button>
+                <button className="gcc-btn" type="button" onClick={() => void navigator.clipboard.writeText(focus.code)}>Code kopiëren</button>
                 <button className="gcc-btn" type="button" onClick={() => window.print()}>QR printen</button>
               </div>
-              <HintGift key={selected.id} team={selected} onControl={onControl} />
+              <HintGift key={focus.id} team={focus} onControl={onControl} />
             </>
-          ) : <p>Kies een team voor details, hints en een tijdcorrectie.</p>}
+          ) : <p>Kies een team. De gegevens en het hintveld verschijnen hier.</p>}
           <h3>Logboek</h3>
           {board.timeLog.length === 0 ? <p className="gcc-note">Nog geen tijdswijziging.</p> : board.timeLog.map((row) => (
             <p key={row.id}>{new Date(row.createdAt).toLocaleString("nl-NL", { dateStyle: "short", timeStyle: "medium" })} · {row.actor} · {row.targets} · {row.seconds > 0 ? "+" : ""}{row.seconds / 60} min{row.reason ? ` · ${row.reason}` : ""}</p>
@@ -854,19 +968,61 @@ function LiveDesk({
   );
 }
 
-function DraftTune({ session, onSave }: { session: AdminSnapshot["session"]; onSave: (fields: Record<string, unknown>) => void }) {
-  const [title, setTitle] = useState(session.name);
-  const [minutes, setMinutes] = useState(Math.round(session.durationSec / 60));
-  const [penalty, setPenalty] = useState(session.hintPenaltySec);
+function SessionFacts({ session, onSave }: { session: Session; onSave: (fields: Record<string, unknown>) => void }) {
+  const [open, setOpen] = useState(false);
+  const when = sessionWhen(session);
   return (
     <section className="gcc-panel gcc-noprint">
-      <h2>Sessie nog niet gestart</h2>
-      <div className="gcc-row">
-        <input aria-label="Evenementnaam" value={title} onChange={(event) => setTitle(event.target.value)} />
-        <input aria-label="Speelduur" type="number" min={10} max={180} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} />
-        <input aria-label="Strafseconden" type="number" min={0} max={300} value={penalty} onChange={(event) => setPenalty(Number(event.target.value))} />
-        <button className="gcc-btn" type="button" onClick={() => onSave({ name: title, durationMin: minutes, hintPenalty: session.hintPenalty, hintPenaltySec: penalty, mode: session.mode, sector: session.sector })}>Instellingen bewaren</button>
+      <div className="gcc-row" style={{ justifyContent: "space-between" }}>
+        <h2>Sessiegegevens</h2>
+        <button className="gcc-btn" type="button" onClick={() => setOpen((value) => !value)}>{open ? "Sluiten" : "Aanpassen"}</button>
       </div>
+      <ul className="gcc-facts">
+        <li>{session.name}</li>
+        <li>{session.clientName.trim() ? session.clientName : "Bedrijfsnaam leeg"}</li>
+        <li>{when.kind} {when.text}</li>
+        <li>{modeLabel(session.mode)}</li>
+        <li>{sectorLabel(session.sector)}</li>
+        <li>{Math.round(session.durationSec / 60)} min</li>
+        <li>Hintstraf {session.hintPenalty ? `${session.hintPenaltySec}s` : "uit"}</li>
+      </ul>
+      {open && <SessionEditor key={`${session.id}-${session.clientName}-${session.name}-${session.mode}-${session.sector}-${session.durationSec}`} session={session} onSave={onSave} />}
+    </section>
+  );
+}
+
+function SessionEditor({ session, onSave }: { session: Session; onSave: (fields: Record<string, unknown>) => void }) {
+  const [title, setTitle] = useState(session.name);
+  const [company, setCompany] = useState(session.clientName ?? "");
+  const [date, setDate] = useState(session.eventDate ?? "");
+  const [playMode, setPlayMode] = useState<GameMode>(session.mode);
+  const [playSector, setPlaySector] = useState<Sector>(session.sector);
+  const [minutes, setMinutes] = useState(Math.round(session.durationSec / 60));
+  const [penaltyOnLocal, setPenaltyOnLocal] = useState(session.hintPenalty);
+  const [penalty, setPenalty] = useState(session.hintPenaltySec);
+  return (
+    <section className="gcc-edit gcc-noprint">
+      <h3>Gegevens aanpassen</h3>
+      <label>Evenement<input aria-label="Evenementnaam" value={title} onChange={(event) => setTitle(event.target.value)} /></label>
+      <label>Bedrijfsnaam<input aria-label="Bedrijfsnaam" value={company} onChange={(event) => setCompany(event.target.value)} placeholder="Bijvoorbeeld Gemeente Havenstad" /></label>
+      <label>Datum<input aria-label="Datum" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+      <div className="gcc-row">
+        {(["escape", "awareness", "nis2"] as GameMode[]).map((item) => (
+          <button key={item} className={`gcc-btn${playMode === item ? " primary" : ""}`} type="button" onClick={() => setPlayMode(item)}>{modeLabel(item)}</button>
+        ))}
+      </div>
+      <div className="gcc-row">
+        {SECTORS.map((item) => (
+          <button key={item.id} className={`gcc-btn${playSector === item.id ? " primary" : ""}`} type="button" onClick={() => setPlaySector(item.id)}>{item.label}</button>
+        ))}
+      </div>
+      <div className="gcc-row">
+        <label>Speelduur in minuten<input aria-label="Speelduur" type="number" min={10} max={180} value={minutes} onChange={(event) => setMinutes(Number(event.target.value))} /></label>
+        <button className="gcc-btn" type="button" onClick={() => setPenaltyOnLocal((value) => !value)}>Hintstraffen: {penaltyOnLocal ? "aan" : "uit"}</button>
+        <label>Strafseconden<input aria-label="Strafseconden" type="number" min={0} max={300} value={penalty} onChange={(event) => setPenalty(Number(event.target.value))} /></label>
+      </div>
+      <p className="gcc-note">Starttijd, score en voortgang blijven staan. Een andere speelduur verschuift wel de resterende tijd.</p>
+      <button className="gcc-btn primary" type="button" onClick={() => onSave({ name: title, client: company, eventDate: date, durationMin: minutes, hintPenalty: penaltyOnLocal, hintPenaltySec: penalty, mode: playMode, sector: playSector })}>Bewaar gegevens</button>
     </section>
   );
 }

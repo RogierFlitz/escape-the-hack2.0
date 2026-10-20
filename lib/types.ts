@@ -12,6 +12,8 @@ export type Session = {
   hintPenaltySec: number;
   mode: GameMode;
   sector: Sector;
+  clientName: string;
+  eventDate: string;
   status: SessionStatus;
   startedAt: number | null;
   pauseStartedAt: number | null;
@@ -95,6 +97,7 @@ export type PlaySnapshot = {
     hintPenaltySec: number;
     mode: GameMode;
     sector: Sector;
+    clientName: string;
   };
   awareness: AwarenessState;
   chapter: { id: number; title: string; subtitle: string; index: number; total: number };

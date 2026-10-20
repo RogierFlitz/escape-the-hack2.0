@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at BIGINT NOT NULL,
   ended_at BIGINT,
   mode TEXT NOT NULL DEFAULT 'escape',
-  sector TEXT NOT NULL DEFAULT 'general'
+  sector TEXT NOT NULL DEFAULT 'general',
+  client_name TEXT NOT NULL DEFAULT '',
+  event_date TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS teams (
   id TEXT PRIMARY KEY,
@@ -73,6 +75,8 @@ const MIGRATIONS = [
   "ALTER TABLE teams ADD COLUMN time_adjust_sec INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE teams ADD COLUMN coach_json TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE time_adjustments ADD COLUMN reason TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE sessions ADD COLUMN client_name TEXT NOT NULL DEFAULT ''",
+  "ALTER TABLE sessions ADD COLUMN event_date TEXT NOT NULL DEFAULT ''",
 ];
 
 function migrateSqlite(db: DatabaseSync) {

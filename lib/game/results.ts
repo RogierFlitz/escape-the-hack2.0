@@ -423,7 +423,12 @@ export function sessionReport(session: Session, teams: Team[], now: number): Ses
     .sort((a, b) => b.teams - a.teams || a.topic.localeCompare(b.topic))
     .slice(0, 3);
   return {
-    session: { id: session.id, name: session.name, mode: session.mode ?? "escape", status: session.status },
+    session: {
+      id: session.id,
+      name: [session.name, session.clientName].filter((part) => part && part.trim()).join(" · "),
+      mode: session.mode ?? "escape",
+      status: session.status,
+    },
     generatedAt: now,
     passRule: PASS_RULE,
     tieRule: TIE_RULE,

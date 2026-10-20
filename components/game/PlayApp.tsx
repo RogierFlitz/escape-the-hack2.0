@@ -448,6 +448,7 @@ export function PlayApp({ code }: { code: string }) {
       {snap.team.status === "ready" && (
         <section className="lobby" style={{ padding: 24 }}>
           <p className="kicker">{snap.session.name}</p>
+          {snap.session.clientName ? <p>{snap.session.clientName}</p> : null}
           <h1>{snap.team.name}</h1>
           <p className="lede">Wacht tot de instructeur de missie start. Jullie scherm blijft hier.</p>
         </section>

@@ -24,6 +24,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     hintPenaltySec?: number;
     mode?: string;
     sector?: string;
+    client?: string;
+    eventDate?: string;
   } | null;
   if (!body?.action) return NextResponse.json({ ok: false, error: "Geen actie." }, { status: 400 });
   const result =
@@ -43,6 +45,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
             hintPenaltySec: body.hintPenaltySec,
             mode: body.mode,
             sector: body.sector,
+            client: body.client,
+            eventDate: body.eventDate,
           });
   if ("error" in result) return NextResponse.json({ ok: false, error: result.error }, { status: 400 });
   const snapshot = await adminSnapshot(id);

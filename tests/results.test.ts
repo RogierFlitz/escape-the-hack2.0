@@ -17,6 +17,8 @@ const session: Session = {
   hintPenaltySec: 30,
   mode: "escape",
   sector: "general",
+  clientName: "",
+  eventDate: "",
   status: "live",
   startedAt: 1_000_000,
   pauseStartedAt: null,

@@ -1,5 +1,5 @@
 import "server-only";
-import { addCoachNote, addDraftTeam, clearTeamTime, createSession, getByCode, getSession, grantTime, removeReadyTeam, renameTeam, saveSession, saveTeam, setTeamCode, updateDraft } from "../db/store";
+import { addCoachNote, addDraftTeam, clearTeamTime, createSession, getByCode, getSession, grantTime, removeReadyTeam, renameTeam, saveSession, saveTeam, setTeamCode, updateSessionDetails } from "../db/store";
 import { allSolved, currentChapterId } from "../scoring";
 import { elapsedSec, inOffice, teamRemainingSec } from "../time";
 import type { Session, Team } from "../types";
@@ -316,6 +316,8 @@ export async function controlSession(
     requestId?: string;
     reason?: string;
     name?: string;
+    client?: string;
+    eventDate?: string;
     durationMin?: number;
     hintPenalty?: boolean;
     hintPenaltySec?: number;
@@ -421,16 +423,25 @@ export async function controlSession(
     const penalty = Number(options.hintPenaltySec);
     if (!Number.isFinite(durationMin) || durationMin < 10 || durationMin > 180) return { error: "Speelduur moet tussen 10 en 180 minuten liggen." };
     if (!Number.isFinite(penalty) || penalty < 0 || penalty > 300) return { error: "Tijdstraf per hint moet tussen 0 en 300 seconden liggen." };
-    const tuned = await updateDraft(sessionId, {
-      name: clip(options.name, 60) || session.name,
+    const eventDate = clip(options.eventDate, 10);
+    if (eventDate && !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return { error: "Datum moet als jjjj-mm-dd." };
+    const tuned = await updateSessionDetails(sessionId, {
+      name: clip(options.name, 80) || session.name,
+      clientName: options.client === undefined ? session.clientName : clip(options.client, 80),
+      eventDate: options.eventDate === undefined ? session.eventDate : eventDate,
       durationSec: Math.round(durationMin * 60),
       hintPenalty: options.hintPenalty !== false,
       hintPenaltySec: Math.round(penalty),
-      mode: parseMode(options.mode),
-      sector: parseSector(options.sector),
+      mode: options.mode === undefined ? session.mode : parseMode(options.mode),
+      sector: options.sector === undefined ? session.sector : parseSector(options.sector),
     });
     if ("error" in tuned) return tuned;
-    return { ok: true as const, notice: "Instellingen bewaard. De klok is niet gestart." };
+    return {
+      ok: true as const,
+      notice: session.status === "draft"
+        ? "Gegevens bewaard. De klok is niet gestart."
+        : "Gegevens bewaard. Starttijd, score en voortgang blijven staan.",
+    };
   }
   if (action === "skip-prologue") {
     for (const team of found.teams) {

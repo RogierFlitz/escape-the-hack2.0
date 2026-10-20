@@ -575,6 +575,35 @@ test("een instructeurshint kost geen tijd en een eigen extra hint blijft apart",
   assert.equal("error" in closed, true);
 });
 
+test("een lopende sessie houdt bedrijfsnaam, starttijd en score bij een wijziging", async () => {
+  await load();
+  const created = await openSession("Bedrijfsuitje", ["Team 1"], "nis2");
+  await actions.controlSession(created.session.id, "start");
+  const started = await store.getSession(created.session.id);
+  await actions.controlSession(created.session.id, "pause");
+  const tuned = await actions.controlSession(created.session.id, "retune", 0, {
+    name: "Bedrijfsuitje",
+    client: "Gemeente Havenstad",
+    eventDate: "2026-10-20",
+    durationMin: 60,
+    hintPenalty: true,
+    hintPenaltySec: 30,
+    mode: "nis2",
+    sector: "gemeenten",
+  });
+  assert.equal("error" in tuned, false);
+  const after = await store.getSession(created.session.id);
+  assert.equal(after?.session.clientName, "Gemeente Havenstad");
+  assert.equal(after?.session.eventDate, "2026-10-20");
+  assert.equal(after?.session.name, "Bedrijfsuitje");
+  assert.equal(after?.session.sector, "gemeenten");
+  assert.equal(after?.session.mode, "nis2");
+  assert.equal(after?.session.status, "paused");
+  assert.equal(after?.session.startedAt, started?.session.startedAt);
+  assert.equal(after?.teams[0]?.solved.length, 0);
+  assert.equal(after?.teams[0]?.penaltySec, 0);
+});
+
 test("na drie hints kan een vastgelopen team nog één extra hint krijgen", async () => {
   await load();
   const created = await openSession("Doorgang", ["Ploeg Vast"], "escape");
