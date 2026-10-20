@@ -48,7 +48,7 @@ export function KadeTransmission({
       narrate(line, true, () => {
         if (!alive || index >= scene.lines.length - 1) return;
         setIndex((value) => value + 1);
-      }, !nora);
+      }, nora ? "nora" : "kade");
       return () => {
         alive = false;
       };

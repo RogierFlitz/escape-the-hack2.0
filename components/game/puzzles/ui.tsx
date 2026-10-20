@@ -1,7 +1,26 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { puzzleCues } from "@/lib/game/content";
+
+export function Pick({
+  many = false,
+  on,
+  className = "",
+  children,
+  ...rest
+}: {
+  many?: boolean;
+  on: boolean;
+  children: ReactNode;
+} & ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button type="button" aria-pressed={on} className={`${className} sel ${many ? "sel-many" : "sel-one"}${on ? " on" : ""}`} {...rest}>
+      <i className="sel-mark" aria-hidden />
+      <span>{children}</span>
+    </button>
+  );
+}
 
 export function Seal() {
   return <div className="seal mono">LAAG HERSTELD</div>;

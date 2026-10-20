@@ -18,6 +18,7 @@ import { Mission3LogExplorer } from "./network/Logs";
 import { Mission3NetworkMap } from "./network/Map";
 import { nodeLabel } from "./network/shared";
 import { Mission3Timeline } from "./network/Timeline";
+import { Pick } from "./puzzles/ui";
 import "./network/soc.css";
 
 function useDraft<T>(id: string, initial: T) {
@@ -216,16 +217,16 @@ function SessionCase({
       <p className="kicker">Onderzoek</p>
       {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
-        <p>Welke sessie wijkt af?</p>
+        <p>Welke sessie wijkt af? Kies één.</p>
         <div className="soc-picks">
           {sessions.map((id) => (
-            <button key={id} className={session === id ? "on" : ""} type="button" onClick={() => setSession(id)}>{id}</button>
+            <Pick key={id} className="soc-pick" on={session === id} onClick={() => setSession(id)}>{id}</Pick>
           ))}
         </div>
-        <p>Waar blijkt dat uit?</p>
+        <p>Waar blijkt dat uit? Kies meerdere. Het vakje vinkt aan.</p>
         <div className="soc-picks stack">
           {clues.map((item) => (
-            <button key={item.id} className={picked.includes(item.id) ? "on" : ""} type="button" onClick={() => toggle(item.id)}>{item.label}</button>
+            <Pick key={item.id} many className="soc-pick" on={picked.includes(item.id)} onClick={() => toggle(item.id)}>{item.label}</Pick>
           ))}
         </div>
       </div>

@@ -15,6 +15,8 @@ const MALE = ["maarten", "frank", "daan", "xander", "ruben", "guy", "bart", "bra
 const FEMALE = ["fenna", "fleur", "colette", "mara", "emma", "hanna", "claire", "sabrina"];
 
 const KADE_VOICE = voicePresets.find((preset) => preset.id === "dreigend") ?? voicePresets[0];
+const NORA_VOICE = { rate: 0.9, pitch: 1.05, rest: 640 };
+export type StoryVoice = "kade" | "nora";
 
 let token = 0;
 let active = "";
@@ -65,30 +67,58 @@ function stopBed() {
   bed = null;
 }
 
-function scoreVoice(voice: SpeechSynthesisVoice) {
+type VoiceRole = StoryVoice | "any";
+const lockedVoice = new Map<StoryVoice, SpeechSynthesisVoice>();
+
+function scoreVoice(voice: SpeechSynthesisVoice, role: VoiceRole) {
   const name = voice.name.toLowerCase();
   const lang = voice.lang.toLowerCase();
   if (!lang.startsWith("nl")) return -1;
   let score = lang.startsWith("nl-nl") ? 10 : 4;
   if (name.includes("natural") || name.includes("neural") || name.includes("premium")) score += 24;
   if (name.includes("online")) score += 6;
-  if (MALE.some((part) => name.includes(part)) || /\bmale\b/.test(name)) score += 80;
-  if (FEMALE.some((part) => name.includes(part)) || /\bfemale\b/.test(name)) score -= 70;
+  const male = MALE.some((part) => name.includes(part)) || /\bmale\b/.test(name);
+  const female = FEMALE.some((part) => name.includes(part)) || /\bfemale\b/.test(name);
+  if (role === "nora") {
+    if (female) score += 80;
+    if (male) score -= 10;
+  } else {
+    if (male) score += 80;
+    if (female) score -= 40;
+  }
   return score;
 }
 
-function pickVoice() {
+function pickVoice(role: VoiceRole = "any") {
+  if (role !== "any") {
+    const held = lockedVoice.get(role);
+    if (held) return held;
+  }
   const voices = window.speechSynthesis.getVoices();
   let best: SpeechSynthesisVoice | null = null;
   let bestScore = Number.NEGATIVE_INFINITY;
   for (const voice of voices) {
-    const score = scoreVoice(voice);
+    const score = scoreVoice(voice, role);
     if (score > bestScore) {
       best = voice;
       bestScore = score;
     }
   }
+  if (role !== "any" && best) lockedVoice.set(role, best);
   return best;
+}
+
+function storyOf(voice: boolean | StoryVoice): StoryVoice | "room" {
+  if (voice === true || voice === "kade") return "kade";
+  if (voice === "nora") return "nora";
+  return "room";
+}
+
+function presetFor(voice: boolean | StoryVoice) {
+  const story = storyOf(voice);
+  if (story === "kade") return KADE_VOICE;
+  if (story === "nora") return NORA_VOICE;
+  return voicePresets.find((item) => item.id === readVoicePreset()) ?? voicePresets[0];
 }
 
 export function readVoicePreset(): VoicePresetId {
@@ -106,11 +136,12 @@ export function narratorName() {
   return pickVoice()?.name ?? "Standaardstem van dit apparaat";
 }
 
-function applyVoice(utterance: SpeechSynthesisUtterance, threat = false) {
-  const preset = threat ? KADE_VOICE : (voicePresets.find((item) => item.id === readVoicePreset()) ?? voicePresets[0]);
-  const voice = pickVoice();
-  utterance.lang = voice?.lang || "nl-NL";
-  if (voice) utterance.voice = voice;
+function applyVoice(utterance: SpeechSynthesisUtterance, voice: boolean | StoryVoice = false) {
+  const story = storyOf(voice);
+  const preset = presetFor(voice);
+  const chosen = pickVoice(story === "room" ? "any" : story);
+  utterance.lang = chosen?.lang || "nl-NL";
+  if (chosen) utterance.voice = chosen;
   utterance.rate = preset.rate;
   utterance.pitch = preset.pitch;
   utterance.volume = readVoiceVolume() / 100;
@@ -185,7 +216,7 @@ export function stopNarration() {
   if (typeof window !== "undefined") window.speechSynthesis?.cancel();
 }
 
-export function narrate(line: string, audio: boolean, onDone?: () => void, threat = false) {
+export function narrate(line: string, audio: boolean, onDone?: () => void, voice: boolean | StoryVoice = false) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
   const text = line.trim();
   if (!audio || !text) {
@@ -196,7 +227,8 @@ export function narrate(line: string, audio: boolean, onDone?: () => void, threa
     if (onDone) pendingDone = onDone;
     return;
   }
-  if (threat) previewGen += 1;
+  const story = storyOf(voice);
+  if (story === "kade") previewGen += 1;
   else stopBed();
   const mine = ++token;
   active = text;
@@ -209,8 +241,8 @@ export function narrate(line: string, audio: boolean, onDone?: () => void, threa
     const next = pendingDone;
     pendingDone = null;
     active = "";
-    const preset = threat ? KADE_VOICE : (voicePresets.find((item) => item.id === readVoicePreset()) ?? voicePresets[0]);
-    if (!threat) stopBed();
+    const preset = presetFor(voice);
+    if (story !== "kade") stopBed();
     duckMusic(false);
     window.setTimeout(() => {
       if (mine !== token) return;
@@ -225,9 +257,9 @@ export function narrate(line: string, audio: boolean, onDone?: () => void, threa
     window.setTimeout(() => {
       if (mine !== token) return;
       const utterance = new SpeechSynthesisUtterance(text);
-      applyVoice(utterance, threat);
+      applyVoice(utterance, voice);
       duckMusic(true);
-      if (threat) startBed();
+      if (story === "kade") startBed();
       utterance.onend = finish;
       utterance.onerror = (event) => {
         if (event.error === "interrupted" || event.error === "canceled") return;

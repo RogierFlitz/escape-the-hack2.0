@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   accessRows,
   causes,
@@ -15,7 +15,17 @@ import {
   shareHistory,
   wall,
 } from "@/lib/game/insider";
-import { TaskCue } from "./puzzles/ui";
+import { Pick, TaskCue } from "./puzzles/ui";
+
+function ChoiceGroup({ title, hint, children }: { title: string; hint: string; children: ReactNode }) {
+  return (
+    <section className="in-group">
+      <b>{title}</b>
+      <small>{hint}</small>
+      <div className="in-picks">{children}</div>
+    </section>
+  );
+}
 
 function useDraft<T>(id: string, initial: T) {
   const key = `eth-m5-${id}`;
@@ -180,7 +190,7 @@ export function InsiderDesk({
       {puzzleId === "ch5-camera" && (
         <aside className="fp-side">
           <p className="kicker">Momentopnames</p>
-          <p>Elke camera heeft twee fragmenten. Bewaar het fragment dat iemand of een pas op een plek zet.</p>
+          <p>Elke camera heeft twee fragmenten. Bewaar het fragment dat iemand of een pas op een plek zet. Meerdere fragmenten mogen. Tik nog eens op een bewaard fragment om het weg te halen.</p>
           <p>{frames.length} bewaard</p>
           <button className="btn btn-mint" type="button" disabled={busy || solved || frames.length === 0} onClick={() => onSolve({ frames })}>Beelden vastleggen</button>
         </aside>
@@ -258,7 +268,8 @@ function StillView({
         <button className="btn btn-ghost" type="button" onClick={onBack}>Wand</button>
         <button className="btn" type="button" onClick={onPrev}>Vorig fragment</button>
         <button className="btn" type="button" onClick={onNext}>Volgend fragment</button>
-        <button className="btn btn-mint" type="button" onClick={onSave}>{saved ? "Bewaard" : "Momentopname"}</button>
+        <button className="btn btn-mint" type="button" onClick={onSave}>{saved ? "Bewaard" : "Dit fragment bewaren"}</button>
+        <p className="in-note">Meerdere fragmenten mogen. Elk fragment kies je apart.</p>
       </div>
     </figure>
   );
@@ -306,15 +317,14 @@ function PlaceCase({
             <small>{slot.hint}</small>
             <div className="in-picks" role="group" aria-label={`Plek voor ${slot.label}`}>
               {placeChoices.map((place) => (
-                <button
+                <Pick
                   key={place.id}
-                  className={`fp-chip${places[slot.id] === place.id ? " on" : ""}`}
-                  type="button"
-                  aria-pressed={places[slot.id] === place.id}
+                  className="fp-chip"
+                  on={places[slot.id] === place.id}
                   onClick={() => setPlaces((current) => ({ ...current, [slot.id]: place.id }))}
                 >
                   {place.label}
-                </button>
+                </Pick>
               ))}
             </div>
             <small>{chosen ? `Gekozen: ${chosen.label}` : "Tik een plek"}</small>
@@ -325,8 +335,8 @@ function PlaceCase({
         <b>5. Pas 4418 om 02:31</b>
         <small>Vergelijk de pasregistratie met het beeld van datzelfde moment. Kies één.</small>
         <div className="in-picks" role="group" aria-label="Vergelijking van pas en beeld">
-          <button className={`fp-chip${badge === "same" ? " on" : ""}`} type="button" aria-pressed={badge === "same"} onClick={() => setBadge("same")}>Ze horen bij elkaar</button>
-          <button className={`fp-chip${badge === "apart" ? " on" : ""}`} type="button" aria-pressed={badge === "apart"} onClick={() => setBadge("apart")}>Ze wijken af</button>
+          <Pick className="fp-chip" on={badge === "same"} onClick={() => setBadge("same")}>Ze horen bij elkaar</Pick>
+          <Pick className="fp-chip" on={badge === "apart"} onClick={() => setBadge("apart")}>Ze wijken af</Pick>
         </div>
       </div>
       <button className="btn btn-mint" type="button" disabled={busy || solved || !ready} onClick={() => onSolve({ places, badge })}>Plekken vastleggen</button>
@@ -360,25 +370,22 @@ function ShareCase({
   return (
     <aside className="fp-side">
       <p className="kicker">Delen</p>
-      <p>Wijs de wijziging aan, de opening van buitenaf, en het chatbericht dat daarbij hoort.</p>
-      <b>Deelregel</b>
-      <div className="sp-picks">
+      <p>Drie aparte vragen. Bij elke vraag kies je één regel. De ronde stip toont de keuze.</p>
+      <ChoiceGroup title="1. Deelregel" hint="Kies één wijziging">
         {shareHistory.map((row) => (
-          <button key={row.id} className={`fp-chip${setting === row.id ? " on" : ""}`} type="button" onClick={() => setSetting(row.id)}>{row.time}</button>
+          <Pick key={row.id} className="fp-chip" on={setting === row.id} onClick={() => setSetting(row.id)}>{row.time} · {row.text}</Pick>
         ))}
-      </div>
-      <b>Opening</b>
-      <div className="sp-picks">
+      </ChoiceGroup>
+      <ChoiceGroup title="2. Opening" hint="Kies één opening">
         {shareHistory.map((row) => (
-          <button key={row.id} className={`fp-chip${opened === row.id ? " on" : ""}`} type="button" onClick={() => setOpened(row.id)}>{row.time}</button>
+          <Pick key={row.id} className="fp-chip" on={opened === row.id} onClick={() => setOpened(row.id)}>{row.time} · {row.text}</Pick>
         ))}
-      </div>
-      <b>Chat</b>
-      <div className="sp-picks">
+      </ChoiceGroup>
+      <ChoiceGroup title="3. Chat" hint="Kies één bericht">
         {chatLines.map((line) => (
-          <button key={line.id} className={`fp-chip${message === line.id ? " on" : ""}`} type="button" onClick={() => setMessage(line.id)}>{line.time} {line.who}</button>
+          <Pick key={line.id} className="fp-chip" on={message === line.id} onClick={() => setMessage(line.id)}>{line.time} {line.who} · {line.text}</Pick>
         ))}
-      </div>
+      </ChoiceGroup>
       <button className="btn btn-mint" type="button" disabled={busy || solved || !ready} onClick={() => onSolve({ setting, opened, message })}>Delen vastleggen</button>
     </aside>
   );
@@ -420,32 +427,32 @@ function ReportCase({
   return (
     <aside className="fp-side">
       <p className="kicker">Rapport</p>
-      <p>Stel de conclusie samen. Een camera alleen is geen bewijs van delen.</p>
-      <div className="sp-picks">
+      <p>Vier keer één antwoord, en daarna de bewijsstukken. Een camera alleen is geen bewijs van delen.</p>
+      <ChoiceGroup title="Persoon" hint="Kies één">
         {people.map((item) => (
-          <button key={item.id} className={`fp-chip${person === item.id ? " on" : ""}`} type="button" onClick={() => setPerson(item.id)}>{item.name}</button>
+          <Pick key={item.id} className="fp-chip" on={person === item.id} onClick={() => setPerson(item.id)}>{item.name}</Pick>
         ))}
-      </div>
-      <div className="sp-picks">
+      </ChoiceGroup>
+      <ChoiceGroup title="Document" hint="Kies één">
         {documents.map((item) => (
-          <button key={item.id} className={`fp-chip${documentId === item.id ? " on" : ""}`} type="button" onClick={() => setDocumentId(item.id)}>{item.label}</button>
+          <Pick key={item.id} className="fp-chip" on={documentId === item.id} onClick={() => setDocumentId(item.id)}>{item.label}</Pick>
         ))}
-      </div>
-      <div className="sp-picks">
+      </ChoiceGroup>
+      <ChoiceGroup title="Oorzaak" hint="Kies één">
         {causes.map((item) => (
-          <button key={item.id} className={`fp-chip${cause === item.id ? " on" : ""}`} type="button" onClick={() => setCause(item.id)}>{item.label}</button>
+          <Pick key={item.id} className="fp-chip" on={cause === item.id} onClick={() => setCause(item.id)}>{item.label}</Pick>
         ))}
-      </div>
-      <div className="sp-picks">
+      </ChoiceGroup>
+      <ChoiceGroup title="Opzet" hint="Kies één">
         {intents.map((item) => (
-          <button key={item.id} className={`fp-chip${intent === item.id ? " on" : ""}`} type="button" onClick={() => setIntent(item.id)}>{item.label}</button>
+          <Pick key={item.id} className="fp-chip" on={intent === item.id} onClick={() => setIntent(item.id)}>{item.label}</Pick>
         ))}
-      </div>
-      <div className="sp-picks">
+      </ChoiceGroup>
+      <ChoiceGroup title="Bewijsstukken" hint={`Kies er één of meer. ${evidence.length} aangevinkt. Tik nog eens om te wissen.`}>
         {proof.map((item) => (
-          <button key={item.id} className={`fp-chip${evidence.includes(item.id) ? " on" : ""}`} type="button" onClick={() => toggle(item.id)}>{item.label}</button>
+          <Pick key={item.id} many className="fp-chip" on={evidence.includes(item.id)} onClick={() => toggle(item.id)}>{item.label}</Pick>
         ))}
-      </div>
+      </ChoiceGroup>
       <button className="btn btn-mint" type="button" disabled={busy || solved || !ready} onClick={() => onSolve({ person, document: documentId, cause, intent, evidence })}>Rapport vastleggen</button>
     </aside>
   );

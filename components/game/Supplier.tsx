@@ -21,6 +21,7 @@ import {
   traceSupports,
 } from "@/lib/game/supplier";
 import { puzzleCues } from "@/lib/game/content";
+import { Pick } from "./puzzles/ui";
 
 function useDraft<T>(id: string, initial: T) {
   const key = `eth-m2-${id}`;
@@ -540,12 +541,12 @@ function FileCase({ cue, solved, busy, onSolve }: { cue?: string; solved: boolea
     <div className="sp-case">
       <Invest kicker="Verschil" cue={cue} />
       <div className="sp-ask">
-        <p className="sp-q">Wat maakte dit bestand een risico?</p>
+        <p className="sp-q">Wat maakte dit bestand een risico? Kies één of meer. Het vakje vinkt aan.</p>
         <div className="sp-picks">
           {marks.map((item) => (
-            <button key={item.id} className={`fp-chip${picked.includes(item.id) ? " on" : ""}`} type="button" onClick={() => toggle(item.id)}>
+            <Pick key={item.id} many className="fp-chip" on={picked.includes(item.id)} onClick={() => toggle(item.id)}>
               {item.label}
-            </button>
+            </Pick>
           ))}
         </div>
       </div>

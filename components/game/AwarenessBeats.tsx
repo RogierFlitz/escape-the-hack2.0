@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { decisionView, evalView } from "@/lib/game/awareness";
+import { Pick } from "./puzzles/ui";
 
 export function DecisionCard({
   id,
@@ -20,28 +21,28 @@ export function DecisionCard({
     <div className="stack aw">
       <p className="kicker">NORA</p>
       <h2>{view.prompt}</h2>
+      <p className="muted">{view.multi ? "Meerdere antwoorden mogen. Het vakje vinkt aan. Tik nog eens om te wissen." : "Kies één antwoord. De ronde stip toont de keuze."}</p>
       <div className="stack">
         {view.choices.map((choice) => (
-          <button
+          <Pick
             key={choice.id}
-            className={picked.includes(choice.id) ? "token on" : "token"}
-            type="button"
+            many={view.multi}
+            className="token"
+            on={picked.includes(choice.id)}
             disabled={busy}
             onClick={() => {
               if (!view.multi) {
-                onSubmit(choice.id);
+                setPicked([choice.id]);
                 return;
               }
               setPicked((current) => current.includes(choice.id) ? current.filter((item) => item !== choice.id) : [...current, choice.id]);
             }}
           >
             {choice.label}
-          </button>
+          </Pick>
         ))}
       </div>
-      {view.multi && (
-        <button className="btn btn-primary" type="button" disabled={busy || picked.length === 0} onClick={() => onSubmit(picked.join(","))}>Keuze vastleggen</button>
-      )}
+      <button className="btn btn-primary" type="button" disabled={busy || picked.length === 0} onClick={() => onSubmit(view.multi ? picked.join(",") : picked[0])}>Keuze vastleggen</button>
       {feedback && <p className="note">{feedback}</p>}
     </div>
   );
@@ -70,6 +71,7 @@ export function RecoveryAwareness({
 }) {
   const view = decisionView("priority");
   const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState("");
   return (
     <div className="rv-aware">
       <div className="token">
@@ -91,11 +93,13 @@ export function RecoveryAwareness({
         {priorityDone ? <p>{priorityText}</p> : (
           <>
             <p>{view.prompt}</p>
+            <p className="muted">Kies één antwoord. De ronde stip toont de keuze.</p>
             <div className="stack">
               {view.choices.map((choice) => (
-                <button key={choice.id} className="btn" type="button" disabled={busy} onClick={() => onPriority(choice.id)}>{choice.label}</button>
+                <Pick key={choice.id} className="token" on={picked === choice.id} disabled={busy} onClick={() => setPicked(choice.id)}>{choice.label}</Pick>
               ))}
             </div>
+            <button className="btn btn-primary" type="button" disabled={busy || !picked} onClick={() => onPriority(picked)}>Keuze vastleggen</button>
           </>
         )}
       </div>
@@ -117,6 +121,7 @@ export function EvalBoard({
   const ids = ["invoice", "public-doc", "login", "colleague", "outage"];
   const current = ids.find((id) => !done.includes(id)) ?? null;
   const view = current ? evalView(current) : null;
+  const [picked, setPicked] = useState("");
   return (
     <div className="stack">
       <p className="kicker">Nabespreking</p>
@@ -125,9 +130,11 @@ export function EvalBoard({
       {view && current && (
         <>
           <h3>{view.prompt}</h3>
+          <p className="muted">Kies één antwoord en bevestig.</p>
           {view.choices.map((choice) => (
-            <button key={choice.id} className="btn" type="button" disabled={busy} onClick={() => onSubmit(current, choice.id)}>{choice.label}</button>
+            <Pick key={choice.id} className="token" on={picked === choice.id} disabled={busy} onClick={() => setPicked(choice.id)}>{choice.label}</Pick>
           ))}
+          <button className="btn btn-primary" type="button" disabled={busy || !picked} onClick={() => { onSubmit(current, picked); setPicked(""); }}>Keuze vastleggen</button>
           {feedback?.id === current && <p className="note">{feedback.text}</p>}
         </>
       )}

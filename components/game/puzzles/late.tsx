@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { beacons, cameras, cipherText, evidence, helixLegend, helixMessage, sealSlots, shutdownSlots, suspects, symbolPalette, symbolRows } from "@/lib/game/content";
 import type { Token } from "@/lib/types";
-import { HoldButton, Keys, Seal, Shape } from "./ui";
+import { HoldButton, Keys, Pick, Seal, Shape } from "./ui";
 import type { PuzzleProps } from "./early";
 
 function decode(shift: number) {
@@ -127,16 +127,16 @@ export function AccusePuzzle({ solved, busy, onSolve }: PuzzleProps) {
     <div className="stack">
       <div className="grid-2">
         {suspects.map((person) => (
-          <button key={person.id} type="button" className={suspect === person.id ? "suspect on" : "suspect"} onClick={() => setSuspect(person.id)}>
+          <Pick key={person.id} className="suspect" on={suspect === person.id} onClick={() => setSuspect(person.id)}>
             <strong>{person.name}</strong>
-            <div className="muted">{person.role}</div>
-          </button>
+            <span className="muted">{person.role}</span>
+          </Pick>
         ))}
       </div>
-      <p className="muted">Kies drie bewijzen. {picked.length}/3</p>
+      <p className="muted">Kies één persoon hierboven. Kies daarna drie bewijzen. Het vakje vinkt aan. {picked.length}/3</p>
       <div className="stack">
         {evidence.map((item) => (
-          <button key={item.id} type="button" className={picked.includes(item.id) ? "chip on" : "chip"} onClick={() => toggle(item.id)}>{item.label}</button>
+          <Pick key={item.id} many className="chip" on={picked.includes(item.id)} onClick={() => toggle(item.id)}>{item.label}</Pick>
         ))}
       </div>
       {solved ? <Seal /> : <button className="btn btn-primary" type="button" disabled={busy || !suspect || picked.length !== 3} onClick={() => onSolve({ suspect, evidence: picked })}>Lek aanwijzen</button>}

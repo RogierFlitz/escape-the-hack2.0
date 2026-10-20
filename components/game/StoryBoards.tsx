@@ -4,6 +4,7 @@ import { useState } from "react";
 import { backups, sessions, socialPosts } from "@/lib/game/story";
 import type { Token } from "@/lib/types";
 import { SealPuzzle, ShutdownPuzzle } from "./puzzles/late";
+import { Pick } from "./puzzles/ui";
 
 export function SocialBoard({ busy, onSubmit }: { busy: boolean; onSubmit: (ids: string[]) => void }) {
   const [picked, setPicked] = useState<string[]>([]);
@@ -14,13 +15,13 @@ export function SocialBoard({ busy, onSubmit }: { busy: boolean; onSubmit: (ids:
     <div className="stack">
       <p className="kicker">Missie 1 · Digital Footprint</p>
       <h2>Openbaar archief</h2>
-      <p>KADE verzamelde dit vóór de aanval. Markeer de vijf berichten die een naam, een bijeenkomst, een plaats of een partner prijsgeven.</p>
+      <p>KADE verzamelde dit vóór de aanval. Kies vijf berichten. Een vinkje betekent gekozen. Tik nog eens om het weg te halen. {picked.length}/5</p>
       <div className="feed">
         {socialPosts.map((post) => (
-          <button key={post.id} type="button" className={picked.includes(post.id) ? "post on" : "post"} onClick={() => toggle(post.id)}>
+          <Pick key={post.id} many className="post" on={picked.includes(post.id)} onClick={() => toggle(post.id)}>
             <small>{post.source}</small>
             <strong>{post.text}</strong>
-          </button>
+          </Pick>
         ))}
       </div>
       <button className="btn btn-primary" type="button" disabled={busy || picked.length !== 5} onClick={() => onSubmit(picked)}>

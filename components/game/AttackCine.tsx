@@ -41,8 +41,8 @@ function clock(total: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function speak(line: string, audio: boolean, onDone?: () => void, threat = false) {
-  narrate(line, audio, onDone, threat);
+function speak(line: string, audio: boolean, onDone?: () => void, voice: "kade" | "nora" = "nora") {
+  narrate(line, audio, onDone, voice);
 }
 
 function toggleFullscreen() {
@@ -142,7 +142,7 @@ export function AttackCine({
       speak(text, true, () => {
         if (!alive || line >= lines.length - 1) return;
         setLine((value) => value + 1);
-      }, true);
+      }, "kade");
       return () => {
         alive = false;
       };
@@ -167,7 +167,7 @@ export function AttackCine({
       speak(text, true, () => {
         if (!alive || noraLine >= NORA.length - 1) return;
         setNoraLine((value) => value + 1);
-      });
+      }, "nora");
       return () => {
         alive = false;
       };
