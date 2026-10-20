@@ -6,7 +6,7 @@ import { baseRemainingSec, crisisElapsedSec, inOffice, teamRemainingSec } from "
 import type { AdminSnapshot, PlaySnapshot, Session, Team } from "../types";
 import { chapters, files, puzzles, tokenLabel } from "./content";
 import { pendingEvents } from "./events";
-import { hintText } from "./hints";
+import { hintText, rescueHint } from "./hints";
 import { emptyAwareness } from "./awareness";
 import { emptyStory, lastTransmission, missionReady } from "./story";
 
@@ -105,6 +105,7 @@ export function present(session: Session, team: Team, teams: Team[], now: number
         available: solved || (puzzle.chapterId === chapterId && missionReady(team.story ?? emptyStory(), team.solved, puzzle.id) === null),
         hintLevel: level,
         hints: hintText(puzzle.id, level),
+        coach: (team.coach ?? []).filter((item) => item.puzzleId === puzzle.id).map((item) => item.text),
       };
     }),
     inventory: team.inventory.map((id) => ({ id, label: tokenLabel(id) })),
@@ -158,6 +159,15 @@ export async function adminSnapshot(sessionId: string): Promise<AdminSnapshot | 
         phishReported: team.phishReported,
         extraSec: found.session.timeAdjustSec + team.timeAdjustSec,
         lastScene: lastTransmission(team.story ?? emptyStory()),
+        hintsOpen: puzzles
+          .filter((puzzle) => puzzle.chapterId === chapter && !team.solved.includes(puzzle.id))
+          .map((puzzle) => {
+            const level = Math.max(team.hints[puzzle.id] ?? 0, team.instructorHints[puzzle.id] ?? 0);
+            const next = level >= 3 ? null : hintText(puzzle.id, level + 1).at(-1) ?? null;
+            const coach = (team.coach ?? []).filter((item) => item.puzzleId === puzzle.id).map((item) => item.text);
+            const rescue = level >= 3 ? rescueHint(puzzle.id) : null;
+            return { id: puzzle.id, title: puzzle.title, level, next, coach, rescue };
+          }),
       };
     }),
     timeLog: await listTimeGrants(found.session.id),

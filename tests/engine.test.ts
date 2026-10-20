@@ -3,7 +3,7 @@ import test from "node:test";
 import { emptyAwareness, gradeDecision, gradeEval, markPrologue, parseMode, pendingStoryDecision, prologueComplete, recordDecision, recordEval, trainingReport } from "../lib/game/awareness";
 import { colleaguePost, sources } from "../lib/game/footprint";
 import { grade } from "../lib/game/grade";
-import { hintText } from "../lib/game/hints";
+import { hintText, rescueHint } from "../lib/game/hints";
 import { phishDue, phishReady } from "../lib/game/office";
 import { PUZZLE_IDS, puzzleCues } from "../lib/game/content";
 import { demoBeat, demoBlocked } from "../lib/game/demo";
@@ -52,6 +52,7 @@ function team(partial: Partial<Team> = {}): Team {
     breachOffsetSec: 0,
     phishReported: false,
     timeAdjustSec: 0,
+    coach: [],
     awareness: emptyAwareness(),
     story: emptyStory(),
     ...partial,
@@ -423,6 +424,19 @@ test("de finalekaart noemt het juiste account niet vooraf de hacker", () => {
   assert.equal(text.includes("hacker"), false);
   assert.equal(text.includes("deur van kade"), false);
   assert.equal(text.includes("kade"), false);
+});
+
+test("na drie hints blijft er één doorgangshint over, zonder nieuwe code", () => {
+  for (const id of PUZZLE_IDS) {
+    assert.equal(hintText(id, 4).length, 3, id);
+    const extra = rescueHint(id);
+    assert.equal(typeof extra, "string", id);
+    assert.equal((extra ?? "").length > 20, true, id);
+  }
+  assert.equal(rescueHint("ch6-shutdown")?.includes("HX-19"), false);
+  assert.equal(rescueHint("ch6-seals")?.includes("SEAL"), false);
+  assert.equal(rescueHint("ch4-decode")?.includes("HX-19"), false);
+  assert.equal(rescueHint("ch4-sequence")?.includes("22"), false);
 });
 
 test("hintniveau 1 geeft het antwoord nog niet", () => {

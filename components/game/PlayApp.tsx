@@ -199,6 +199,10 @@ export function PlayApp({ code }: { code: string }) {
         const id = body && typeof body === "object" && "id" in body ? String((body as { id: unknown }).id) : "";
         if (id) setFeedback({ id, text: data.feedback });
       }
+      if (path === "rescue") {
+        setNote("Extra hint staat bij de opdracht.");
+        return true;
+      }
       if (path === "decision" || path === "eval" || path === "origin") return true;
       const solvedNow = (data.progress?.solved ?? data.snapshot?.progress?.solved ?? before) > before;
       const puzzleId = body && typeof body === "object" && "puzzleId" in body ? String((body as { puzzleId: unknown }).puzzleId) : "";
@@ -373,10 +377,15 @@ export function PlayApp({ code }: { code: string }) {
             warn={remaining >= 120 && remaining < 600}
             audio={audio}
             rail={rail}
-            hint={stagePuzzle && !stagePuzzle.solved ? { level: stagePuzzle.hintLevel, penalty: snap.session.hintPenalty ? snap.session.hintPenaltySec : 0 } : null}
+            hint={stagePuzzle && !stagePuzzle.solved ? { level: stagePuzzle.hintLevel, penalty: snap.session.hintPenalty ? snap.session.hintPenaltySec : 0, extra: stagePuzzle.hintLevel >= 3 && stagePuzzle.coach.length === 0 } : null}
             busy={busy}
             onHint={() => {
               if (!stagePuzzle) return;
+              if (stagePuzzle.hintLevel >= 3) {
+                if (stagePuzzle.coach.length > 0) return;
+                if (window.confirm("Extra hint vragen? Die kost geen tijd.")) void send("rescue", { puzzleId: stagePuzzle.id });
+                return;
+              }
               void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 });
             }}
             onAudio={() => { const next = !audio; setAudio(next); setSound(next); }}
@@ -415,8 +424,14 @@ export function PlayApp({ code }: { code: string }) {
             <div className="grow" />
             {snap.phase !== "office" && <div className="mono" style={{ fontSize: 16 }}>{snap.team.score} pt</div>}
             {stagePuzzle && !stagePuzzle.solved && snap.phase === "crisis" && (
-              <button className="icon-btn" type="button" disabled={busy || stagePuzzle.hintLevel >= 3} onClick={() => void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 })}>
-                Hints {stagePuzzle.hintLevel}/3
+              <button className="icon-btn" type="button" disabled={busy || (stagePuzzle.hintLevel >= 3 && stagePuzzle.coach.length > 0)} onClick={() => {
+                if (stagePuzzle.hintLevel >= 3) {
+                  if (window.confirm("Extra hint vragen? Die kost geen tijd.")) void send("rescue", { puzzleId: stagePuzzle.id });
+                  return;
+                }
+                void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 });
+              }}>
+                {stagePuzzle.hintLevel >= 3 ? (stagePuzzle.coach.length > 0 ? "Extra hint gegeven" : "Extra hint") : `Hints ${stagePuzzle.hintLevel}/3`}
               </button>
             )}
             <div className={`mono ${snap.phase === "office" ? "timer" : timerClass}`}>{clockLabel}</div>
@@ -550,8 +565,9 @@ export function PlayApp({ code }: { code: string }) {
                     onOpenFile={openFile}
                     onSolve={(payload) => void send("solve", { puzzleId: stagePuzzle.id, payload })}
                   />
-                  {stagePuzzle.hints.length > 0 && (
+                  {(stagePuzzle.hints.length > 0 || stagePuzzle.coach.length > 0) && (
                     <div className="fp-hints">
+                      {stagePuzzle.coach.map((hint, index) => <div key={`extra-${index}`} className="token"><small>Extra hint</small>{hint}</div>)}
                       {stagePuzzle.hints.map((hint) => <div key={hint} className="token"><small>Hint</small>{asSector(snap.session.sector, hint)}</div>)}
                     </div>
                   )}
@@ -572,8 +588,9 @@ export function PlayApp({ code }: { code: string }) {
                     onOpenFile={openFile}
                     onSolve={(payload) => void send("solve", { puzzleId: stagePuzzle.id, payload })}
                   />
-                  {stagePuzzle.hints.length > 0 && (
+                  {(stagePuzzle.hints.length > 0 || stagePuzzle.coach.length > 0) && (
                     <div className="stack">
+                      {stagePuzzle.coach.map((hint, index) => <div key={`extra-${index}`} className="token"><small>Extra hint</small>{hint}</div>)}
                       {stagePuzzle.hints.map((hint) => <div key={hint} className="token"><small>Hint</small>{asSector(snap.session.sector, hint)}</div>)}
                     </div>
                   )}
@@ -602,8 +619,14 @@ export function PlayApp({ code }: { code: string }) {
                 <div className="pips" aria-hidden>
                   {[1, 2, 3].map((level) => <i key={level} className={stagePuzzle.hintLevel >= level ? "pip on" : "pip"} />)}
                 </div>
-                <button className="btn" type="button" disabled={busy || stagePuzzle.hintLevel >= 3} onClick={() => void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 })}>
-                  Hint{snap.session.hintPenalty ? ` · +${snap.session.hintPenaltySec}s` : ""}
+                <button className="btn" type="button" disabled={busy || (stagePuzzle.hintLevel >= 3 && stagePuzzle.coach.length > 0)} onClick={() => {
+                  if (stagePuzzle.hintLevel >= 3) {
+                    if (window.confirm("Extra hint vragen? Die kost geen tijd.")) void send("rescue", { puzzleId: stagePuzzle.id });
+                    return;
+                  }
+                  void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 });
+                }}>
+                  {stagePuzzle.hintLevel >= 3 ? (stagePuzzle.coach.length > 0 ? "Extra hint gegeven" : "Extra hint") : `Hint${snap.session.hintPenalty ? ` · +${snap.session.hintPenaltySec}s` : ""}`}
                 </button>
               </>
             )}
@@ -744,7 +767,7 @@ function MissionOneBar({
   warn: boolean;
   audio: boolean;
   rail: "mission" | "evidence" | null;
-  hint: { level: number; penalty: number } | null;
+  hint: { level: number; penalty: number; extra?: boolean } | null;
   busy: boolean;
   onHint: () => void;
   onAudio: () => void;
@@ -777,8 +800,8 @@ function MissionOneBar({
         <div className="m1-score"><Trophy /><b>{score} pt</b></div>
         <div className={`mono m1-clock${late ? " late" : warn ? " warn" : ""}`} aria-label="Resterende tijd">{clockLabel}</div>
         {hint && (
-          <button className="m1-tool" type="button" disabled={busy || hint.level >= 3} onClick={onHint}>
-            Hint {hint.level}/3{hint.penalty ? ` +${hint.penalty}s` : ""}
+          <button className="m1-tool" type="button" disabled={busy || (hint.level >= 3 && !hint.extra)} onClick={onHint}>
+            {hint.extra ? "Extra hint" : hint.level >= 3 ? "Extra hint gegeven" : `Hint ${hint.level}/3${hint.penalty ? ` +${hint.penalty}s` : ""}`}
           </button>
         )}
         <button className="m1-tool" type="button" onClick={onAudio}>{audio ? "Geluid aan" : "Geluid uit"}</button>

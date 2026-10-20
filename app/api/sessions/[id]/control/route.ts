@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { controlSession, guideTeam, instructorHint } from "@/lib/game/actions";
+import { coachTeam, controlSession, guideTeam, instructorHint } from "@/lib/game/actions";
 import { adminSnapshot } from "@/lib/game/snapshot";
 import { adminGuard } from "@/lib/http";
 
@@ -15,6 +15,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     seconds?: number;
     teamId?: string;
     puzzleId?: string;
+    text?: string;
     requestId?: string;
     reason?: string;
     name?: string;
@@ -28,6 +29,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const result =
     body.action === "hint"
       ? await instructorHint(id, String(body.teamId ?? ""), body.puzzleId)
+      : body.action === "coach"
+        ? await coachTeam(id, String(body.teamId ?? ""), body.puzzleId, String(body.text ?? ""))
       : body.action === "replay" || body.action === "advance"
         ? await guideTeam(id, String(body.teamId ?? ""), body.action)
         : await controlSession(id, body.action, Number(body.seconds ?? 0), {

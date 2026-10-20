@@ -504,10 +504,10 @@ test("tijd toevoegen geldt per team, eenmaal, en herstart niemand", async () => 
   await store.saveTeam(liveSouth.updatedAt, { ...liveSouth, status: "failed", finishedAt: Date.now(), solved: ["ch1-bays"] });
   const once = await actions.controlSession(created.session.id, "adjust", 300, { requestId: "tijd-eenmalig", teamId: north.id });
   assert.equal("error" in once, false);
-  if ("ok" in once) assert.equal(once.duplicate, false);
+  if ("duplicate" in once) assert.equal(once.duplicate, false);
   const replay = await actions.controlSession(created.session.id, "adjust", 300, { requestId: "tijd-eenmalig", teamId: north.id });
   assert.equal("error" in replay, false);
-  if ("ok" in replay) assert.equal(replay.duplicate, true);
+  if ("duplicate" in replay) assert.equal(replay.duplicate, true);
   await actions.controlSession(created.session.id, "pause");
   const pausedGrant = await actions.controlSession(created.session.id, "adjust", 120, { requestId: "tijd-pauze-allen" });
   assert.equal("error" in pausedGrant, false);
@@ -524,4 +524,81 @@ test("tijd toevoegen geldt per team, eenmaal, en herstart niemand", async () => 
   assert.deepEqual(doneSouth?.solved, ["ch1-bays"]);
   const view = await snapshot.playSnapshot(north.code);
   assert.equal(view?.session.remainingSec, 3600 + 480);
+});
+
+test("een instructeurshint kost geen tijd en een eigen extra hint blijft apart", async () => {
+  await load();
+  const created = await openSession("Extra hints", ["Ploeg Hint"], "escape");
+  const team = created.teams[0];
+  const early = await actions.instructorHint(created.session.id, team.id, "ch1-bays");
+  assert.equal("error" in early, true);
+  await actions.controlSession(created.session.id, "start");
+  const office = await actions.instructorHint(created.session.id, team.id, "ch1-bays");
+  assert.equal("error" in office, true);
+  await actions.triggerBreach(team.code, false);
+  const before = await snap(team.code);
+  const sent = await actions.instructorHint(created.session.id, team.id, "ch1-bays");
+  assert.equal("error" in sent, false);
+  assert.equal("hint" in sent && Boolean(sent.hint), true);
+  const noted = await actions.coachTeam(created.session.id, team.id, "ch1-bays", "Kijk nog eens naar de eerste pin.");
+  assert.equal("error" in noted, false);
+  const again = await actions.coachTeam(created.session.id, team.id, "ch1-bays", "Kijk nog eens naar de eerste pin.");
+  assert.equal("error" in again, false);
+  if ("duplicate" in again) assert.equal(again.duplicate, true);
+  const short = await actions.coachTeam(created.session.id, team.id, "ch1-bays", "ok");
+  assert.equal("error" in short, true);
+  const second = await actions.coachTeam(created.session.id, team.id, "ch1-bays", "Vergelijk de pin met de bron.");
+  const third = await actions.coachTeam(created.session.id, team.id, "ch1-bays", "Eén pin hoort nog niet.");
+  assert.equal("error" in second, false);
+  assert.equal("error" in third, false);
+  const fourth = await actions.coachTeam(created.session.id, team.id, "ch1-bays", "Meer dan drie extra hints mag niet.");
+  assert.equal("error" in fourth, true);
+  const after = await snap(team.code);
+  const puzzle = after.puzzles.find((item) => item.id === "ch1-bays");
+  assert.equal(puzzle?.hintLevel, 1);
+  assert.deepEqual(puzzle?.coach, [
+    "Kijk nog eens naar de eerste pin.",
+    "Vergelijk de pin met de bron.",
+    "Eén pin hoort nog niet.",
+  ]);
+  assert.equal(after.team.penaltySec, before.team.penaltySec);
+  assert.equal(after.team.score, before.team.score);
+  assert.equal(after.progress.solved, before.progress.solved);
+  assert.equal(after.team.status, "playing");
+  const desk = await snapshot.adminSnapshot(created.session.id);
+  const open = desk?.teams[0]?.hintsOpen.find((item) => item.id === "ch1-bays");
+  assert.equal(open?.level, 1);
+  assert.equal(open?.next != null, true);
+  assert.equal(open?.coach.length, 3);
+  await actions.controlSession(created.session.id, "end");
+  const closed = await actions.coachTeam(created.session.id, team.id, "ch1-bays", "Nog een zetje.");
+  assert.equal("error" in closed, true);
+});
+
+test("na drie hints kan een vastgelopen team nog één extra hint krijgen", async () => {
+  await load();
+  const created = await openSession("Doorgang", ["Ploeg Vast"], "escape");
+  const team = created.teams[0];
+  await actions.controlSession(created.session.id, "start");
+  await actions.triggerBreach(team.code, false);
+  const early = await actions.requestRescue(team.code, "ch1-bays");
+  assert.equal("error" in early, true);
+  for (let step = 0; step < 3; step += 1) {
+    const sent = await actions.instructorHint(created.session.id, team.id, "ch1-bays");
+    assert.equal("error" in sent, false);
+  }
+  const before = await snap(team.code);
+  const rescue = await actions.requestRescue(team.code, "ch1-bays");
+  assert.equal("error" in rescue, false);
+  const again = await actions.requestRescue(team.code, "ch1-bays");
+  assert.equal("duplicate" in again && again.duplicate, true);
+  const after = await snap(team.code);
+  const puzzle = after.puzzles.find((item) => item.id === "ch1-bays");
+  assert.equal(puzzle?.hintLevel, 3);
+  assert.equal((puzzle?.coach.length ?? 0) > 0, true);
+  assert.equal(after.team.penaltySec, before.team.penaltySec);
+  assert.equal(after.team.penaltySec, 0);
+  assert.equal(after.team.score, before.team.score);
+  assert.equal(after.progress.solved, 0);
+  assert.equal(after.team.status, "playing");
 });

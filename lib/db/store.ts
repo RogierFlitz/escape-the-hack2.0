@@ -46,6 +46,7 @@ type TeamRow = {
   story_json: string | null;
   awareness_json?: string | null;
   time_adjust_sec?: number | null;
+  coach_json?: string | null;
 };
 
 function parse<T>(value: string, fallback: T): T {
@@ -54,6 +55,16 @@ function parse<T>(value: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function coachNotes(value: string | null | undefined) {
+  const parsed = parse<unknown>(value || "[]", []);
+  if (!Array.isArray(parsed)) return [];
+  return parsed.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const note = item as { puzzleId?: unknown; text?: unknown };
+    return typeof note.puzzleId === "string" && typeof note.text === "string" ? [{ puzzleId: note.puzzleId, text: note.text }] : [];
+  });
 }
 
 function num(value: unknown, fallback = 0) {
@@ -106,13 +117,14 @@ function teamOf(row: TeamRow): Team {
     breachOffsetSec: numOrNull(row.breach_offset_sec),
     phishReported: num(row.phish_reported) === 1,
     timeAdjustSec: num(row.time_adjust_sec),
+    coach: coachNotes(row.coach_json),
     awareness: parseAwareness(parse(row.awareness_json || "{}", {})),
     story: parseStory(parse(row.story_json || "{}", {})),
   };
 }
 
 const SESSION_COLS = `id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector`;
-const TEAM_COLS = `id, session_id, name, code, status, solved_json, hints_json, instructor_hints_json, inventory_json, events_seen_json, penalty_sec, fails, finished_at, updated_at, last_progress_at, breach_offset_sec, phish_reported, story_json, awareness_json, time_adjust_sec`;
+const TEAM_COLS = `id, session_id, name, code, status, solved_json, hints_json, instructor_hints_json, inventory_json, events_seen_json, penalty_sec, fails, finished_at, updated_at, last_progress_at, breach_offset_sec, phish_reported, story_json, awareness_json, time_adjust_sec, coach_json`;
 
 export async function listSessions() {
   const db = await sql();
@@ -251,6 +263,7 @@ export async function createSession(input: {
       breachOffsetSec: null,
       phishReported: false,
       timeAdjustSec: 0,
+      coach: [],
       awareness: emptyAwareness(),
       story: emptyStory(),
     };
@@ -294,9 +307,23 @@ export async function setTeamCode(id: string, code: string) {
   await db.run(`UPDATE teams SET code = ? WHERE id = ?`, [code, id]);
 }
 
+export async function addCoachNote(teamId: string, puzzleId: string, text: string) {
+  const db = await sql();
+  const row = await db.get<{ coach_json: string | null; status: string }>(`SELECT coach_json, status FROM teams WHERE id = ?`, [teamId]);
+  if (!row) return { error: "Team niet gevonden." as const };
+  if (row.status !== "playing") return { error: "Dit team speelt nu niet." as const };
+  const notes = coachNotes(row.coach_json);
+  const own = notes.filter((item) => item.puzzleId === puzzleId);
+  if (own.some((item) => item.text === text)) return { ok: true as const, duplicate: true as const };
+  if (own.length >= 3) return { error: "Dit team heeft voor deze opdracht al drie extra hints." as const };
+  notes.push({ puzzleId, text });
+  await db.run(`UPDATE teams SET coach_json = ? WHERE id = ?`, [JSON.stringify(notes), teamId]);
+  return { ok: true as const, duplicate: false as const };
+}
+
 export async function clearTeamTime(teamId: string) {
   const db = await sql();
-  await db.run(`UPDATE teams SET time_adjust_sec = 0 WHERE id = ?`, [teamId]);
+  await db.run(`UPDATE teams SET time_adjust_sec = 0, coach_json = '[]' WHERE id = ?`, [teamId]);
 }
 
 export async function renameTeam(id: string, name: string) {
@@ -351,6 +378,7 @@ export async function addDraftTeam(sessionId: string, name: string) {
     breachOffsetSec: null,
     phishReported: false,
     timeAdjustSec: 0,
+    coach: [],
     awareness: emptyAwareness(),
     story: emptyStory(),
   };

@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS teams (
   phish_reported INTEGER NOT NULL DEFAULT 0,
   story_json TEXT NOT NULL DEFAULT '{}',
   awareness_json TEXT NOT NULL DEFAULT '{}',
-  time_adjust_sec INTEGER NOT NULL DEFAULT 0
+  time_adjust_sec INTEGER NOT NULL DEFAULT 0,
+  coach_json TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS teams_session ON teams(session_id);
 CREATE TABLE IF NOT EXISTS time_adjustments (
@@ -70,6 +71,7 @@ const MIGRATIONS = [
   "ALTER TABLE sessions ADD COLUMN sector TEXT NOT NULL DEFAULT 'general'",
   "ALTER TABLE teams ADD COLUMN awareness_json TEXT NOT NULL DEFAULT '{}'",
   "ALTER TABLE teams ADD COLUMN time_adjust_sec INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE teams ADD COLUMN coach_json TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE time_adjustments ADD COLUMN reason TEXT NOT NULL DEFAULT ''",
 ];
 

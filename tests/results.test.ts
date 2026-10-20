@@ -46,6 +46,7 @@ function team(partial: Partial<Team> = {}): Team {
     breachOffsetSec: 30,
     phishReported: false,
     timeAdjustSec: 0,
+    coach: [],
     awareness: emptyAwareness(),
     story: emptyStory(),
     ...partial,

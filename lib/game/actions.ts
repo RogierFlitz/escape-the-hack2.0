@@ -1,11 +1,11 @@
 import "server-only";
-import { addDraftTeam, clearTeamTime, createSession, getByCode, getSession, grantTime, removeReadyTeam, renameTeam, saveSession, saveTeam, setTeamCode, updateDraft } from "../db/store";
+import { addCoachNote, addDraftTeam, clearTeamTime, createSession, getByCode, getSession, grantTime, removeReadyTeam, renameTeam, saveSession, saveTeam, setTeamCode, updateDraft } from "../db/store";
 import { allSolved, currentChapterId } from "../scoring";
 import { elapsedSec, inOffice, teamRemainingSec } from "../time";
 import type { Session, Team } from "../types";
 import { puzzles } from "./content";
 import { grade } from "./grade";
-import { hintText } from "./hints";
+import { hintText, rescueHint } from "./hints";
 import { DEMO_CODE, demoProgress, type DemoStop } from "./demo";
 import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, recordDecision, recordEval } from "./awareness";
 import { applyStory, emptyStory, lastTransmission, missionReady, nextBeat } from "./story";
@@ -244,19 +244,67 @@ export async function instructorHint(sessionId: string, teamId: string, puzzleId
   if (!found) return { error: "Sessie niet gevonden." };
   const team = found.teams.find((item) => item.id === teamId);
   if (!team) return { error: "Team niet gevonden." };
+  if (team.status !== "playing") return { error: "Dit team speelt nu niet." };
+  if (inOffice(team)) return { error: "Een extra hint kan zodra de aanval is begonnen." };
   const chapter = currentChapterId(team.solved);
   const target = puzzleId
     ? puzzles.find((item) => item.id === puzzleId)
     : puzzles.find((item) => item.chapterId <= chapter && !team.solved.includes(item.id));
-  if (!target) return { error: "Er is geen open opdracht." };
+  if (!target || target.chapterId > chapter || team.solved.includes(target.id)) return { error: "Er is geen open opdracht." };
   const shown = Math.max(team.instructorHints[target.id] ?? 0, team.hints[target.id] ?? 0);
-  if (shown >= 3) return { error: "Alle hints zijn al gegeven." };
+  if (shown >= 3) return { error: "De drie hints zijn al gegeven. Schrijf zelf een extra hint." };
+  const before = team.penaltySec;
+  const solved = team.solved.slice();
   const next = clone(team);
   next.instructorHints = { ...next.instructorHints, [target.id]: shown + 1 };
+  next.penaltySec = before;
+  next.solved = solved;
   next.updatedAt = Date.now();
   const wrote = await saveTeam(team.updatedAt, next);
   if (!wrote) return { error: "Probeer opnieuw." };
-  return { hint: hintText(target.id, shown + 1).at(-1) ?? "", puzzle: target.title };
+  const hint = hintText(target.id, shown + 1).at(-1) ?? "";
+  return { hint, puzzle: target.title, notice: `Hint ${shown + 1} van 3 naar ${team.name}, zonder tijdstraf. ${hint}` };
+}
+
+export async function requestRescue(code: string, puzzleId: string) {
+  const found = await getByCode(code);
+  if (!found) return { error: "Code niet herkend." as const };
+  const { session, team } = found;
+  if (team.status !== "playing") return { error: "Dit team speelt nu niet." as const };
+  if (inOffice(team)) return { error: "Een extra hint kan zodra de aanval is begonnen." as const };
+  if (session.status === "paused") return { error: "De missie is gepauzeerd." as const };
+  if (session.status === "ended") return { error: "Deze missie is gesloten." as const };
+  const puzzle = puzzles.find((item) => item.id === puzzleId);
+  const chapter = currentChapterId(team.solved);
+  if (!puzzle || puzzle.chapterId > chapter || team.solved.includes(puzzle.id)) return { error: "Er is geen open opdracht." as const };
+  const shown = Math.max(team.hints[puzzle.id] ?? 0, team.instructorHints[puzzle.id] ?? 0);
+  if (shown < 3) return { error: "De extra hint komt pas na de drie gewone hints." as const };
+  const line = rescueHint(puzzle.id);
+  if (!line) return { error: "Voor deze opdracht is geen extra hint." as const };
+  const saved = await addCoachNote(team.id, puzzle.id, line);
+  if ("error" in saved) return saved;
+  if (saved.duplicate) return { ok: true as const, duplicate: true as const, notice: "Deze extra hint staat al op het scherm." };
+  return { ok: true as const, notice: "Extra hint staat op het scherm. Geen tijdstraf." };
+}
+
+export async function coachTeam(sessionId: string, teamId: string, puzzleId: string | undefined, text: string) {
+  const found = await getSession(sessionId);
+  if (!found) return { error: "Sessie niet gevonden." };
+  const team = found.teams.find((item) => item.id === teamId);
+  if (!team) return { error: "Team niet gevonden." };
+  if (team.status !== "playing") return { error: "Dit team speelt nu niet." };
+  if (inOffice(team)) return { error: "Een extra hint kan zodra de aanval is begonnen." };
+  const line = clip(text, 180);
+  if (line.length < 3) return { error: "Schrijf een korte extra hint." };
+  const chapter = currentChapterId(team.solved);
+  const target = puzzleId
+    ? puzzles.find((item) => item.id === puzzleId)
+    : puzzles.find((item) => item.chapterId <= chapter && !team.solved.includes(item.id));
+  if (!target || target.chapterId > chapter || team.solved.includes(target.id)) return { error: "Er is geen open opdracht." };
+  const saved = await addCoachNote(team.id, target.id, line);
+  if ("error" in saved) return saved;
+  if (saved.duplicate) return { ok: true as const, duplicate: true as const, notice: "Deze extra hint was al verstuurd." };
+  return { ok: true as const, notice: `Extra hint naar ${team.name}: ${line}` };
 }
 
 export async function controlSession(
@@ -442,6 +490,7 @@ export async function openDemo(stop: DemoStop) {
     breachOffsetSec: progress.breach ? 0 : null,
     phishReported: false,
     timeAdjustSec: 0,
+    coach: [],
     awareness: stop === "origin" ? emptyAwareness() : markPrologue({ awareness: emptyAwareness(), breachOffsetSec: null }, "skip").awareness,
     story: progress.story,
   };

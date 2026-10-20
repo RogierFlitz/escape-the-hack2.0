@@ -118,10 +118,40 @@ const hints: Record<string, [string, string, string]> = {
   ],
 };
 
+const rescue: Record<string, string> = {
+  "ch1-bays": "Zet de leider op het bedrijfsbericht, de zaal op de opbouwfoto, de partner op het vloerbericht, het lek op de post met de planning, het vertrouwen op de openbare partnerkaart en de vakantie op het socialbericht.",
+  "ch1-login": "Markeer alleen de pas, de planning, het zaalbord en het keycord. Laat de mok en de plant liggen.",
+  "ch1-nodes": "Mara bij wie leidt. De zaal bij de plek. Helix bij de partner. Adler bij het lek. De openbare vermelding bij het vertrouwen.",
+  "ch1-ports": "Vul het evenement Nexora Day in, de partner Helix Events, en als volgende stap die naam als afzender gebruiken.",
+  "ch2-acrostic": "Kies het bericht waarvan het domein helix-events.nl afwijkt. Leg daarnaast het contract en de eerdere mail van het echte adres.",
+  "ch2-meta": "Markeer de maker die niet bij het contractadres hoort, en de extra regel die iemand naar het dok stuurt.",
+  "ch2-timeline": "Zet op volgorde: eerst de geopende mail, dan de pas bij het dok, dan de export die het dok verliet.",
+  "ch2-trace": "Kies de job die om 02:44 als helix-svc het dok verliet. Niet de afgebroken job en niet de afgekeurde proef.",
+  "ch3-logic": "Kies het serviceaccount dat vóór 02:14 een kluisnaam opvroeg. Het tijdstip en die bestemming zijn de twee sporen.",
+  "ch3-path": "Loop van het werkstation naar buiten, dan via de naamserver en authenticatie naar de kluis. Sla de honeypot en de proxy over.",
+  "ch3-boot": "Zet de leverancierssessie in de valomgeving, laat de log bereikbaar en sluit nieuwe tunnels op de buitenkant.",
+  "ch3-cables": "Parkeer de val. Start daarna naamomzetting, dan sessiecontrole, dan de kluis, elk op de poort uit het schema.",
+  "ch4-symbols": "Markeer de planning, het contract, het personeelsbestand, de financiën en de agenda. Het menu, het handboek en het contact niet.",
+  "ch4-sequence": "Het verschil tussen de cycli wordt steeds één groter. Pas diezelfde regel nog één keer toe op het laatste getal.",
+  "ch4-rotor": "Zet het reknummer uit het routetoken op de rotor. Het ontbrekende teken is wat de verschuiving op de open plek achterlaat.",
+  "ch4-backup": "Kies de nachtelijke kopie naar de logserver. Een gelijke controlewaarde is niet genoeg als de log een kopie naar buiten toont.",
+  "ch4-decode": "Kies de crewpas van de leverancier op de dokpoort. Niet de Nexora-badge en niet de geweigerde cateringpas.",
+  "ch5-camera": "Bewaar het kantinebeeld waar de pas blijft liggen, het dokbeeld van 02:31, de aankomst bij de zijpoort en de persoon uit de kantoren.",
+  "ch5-places": "De pas blijft in de kantine. De werkjas hoort bij de zaal. Rek 7 en de kantoren horen bij de verklaringen die daarbij passen.",
+  "ch5-share": "Kies de link die de avond ervoor voor iedereen open is gezet, en het bericht daarover. Niet de mail van 02:14 en niet de export van 02:44.",
+  "ch5-accuse": "Wijs de persoon uit de documentgeschiedenis aan, met de deellink. Er is geen bericht dat de aanval afspreekt.",
+  "ch6-seals": "Rand is het zegel uit de herstelcassette, spoor is het exportspoor, slot is de crewpas. Laat het dossiernummer en het routetoken weg.",
+  "ch6-shutdown": "Zet de vier vondsten in missievolgorde: eerst het onderzoek, dan het exportspoor, dan de route, dan de leverancierscode. Het herstelzegel hoort er niet in.",
+};
+
 export function hintText(puzzleId: string, level: number) {
   const row = hints[puzzleId];
   if (!row || level <= 0) return [];
   return row.slice(0, Math.min(3, level));
+}
+
+export function rescueHint(puzzleId: string) {
+  return rescue[puzzleId] ?? null;
 }
 
 export function puzzleIds() {

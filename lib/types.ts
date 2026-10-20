@@ -40,6 +40,7 @@ export type Team = {
   breachOffsetSec: number | null;
   phishReported: boolean;
   timeAdjustSec: number;
+  coach: { puzzleId: string; text: string }[];
   awareness: AwarenessState;
   story: {
     scenes: string[];
@@ -108,6 +109,7 @@ export type PlaySnapshot = {
     available: boolean;
     hintLevel: number;
     hints: string[];
+    coach: string[];
   }[];
   inventory: Token[];
   files: PlayFile[];
@@ -145,6 +147,7 @@ export type AdminTeam = {
   phishReported: boolean;
   extraSec: number;
   lastScene: string | null;
+  hintsOpen: { id: string; title: string; level: number; next: string | null; coach: string[]; rescue: string | null }[];
 };
 
 export type TimeLogEntry = {
