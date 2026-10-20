@@ -1,5 +1,5 @@
 import "server-only";
-import { getByCode, getSession, saveTeam } from "../db/store";
+import { getByCode, getSession, listTimeGrants, saveTeam } from "../db/store";
 import { lanHosts } from "../net";
 import { allSolved, completedChapters, currentChapterId, scoreBreakdown } from "../scoring";
 import { baseRemainingSec, crisisElapsedSec, inOffice, teamRemainingSec } from "../time";
@@ -156,9 +156,11 @@ export async function adminSnapshot(sessionId: string): Promise<AdminSnapshot | 
         currentPuzzle: office ? "Kantoor" : open?.title ?? null,
         office,
         phishReported: team.phishReported,
+        extraSec: found.session.timeAdjustSec + team.timeAdjustSec,
         lastScene: lastTransmission(team.story ?? emptyStory()),
       };
     }),
+    timeLog: await listTimeGrants(found.session.id),
   };
 }
 

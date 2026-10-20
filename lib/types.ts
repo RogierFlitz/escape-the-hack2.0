@@ -39,6 +39,7 @@ export type Team = {
   lastProgressAt: number;
   breachOffsetSec: number | null;
   phishReported: boolean;
+  timeAdjustSec: number;
   awareness: AwarenessState;
   story: {
     scenes: string[];
@@ -142,7 +143,27 @@ export type AdminTeam = {
   currentPuzzle: string | null;
   office: boolean;
   phishReported: boolean;
+  extraSec: number;
   lastScene: string | null;
+};
+
+export type TimeLogEntry = {
+  id: string;
+  targets: string;
+  seconds: number;
+  actor: string;
+  reason: string;
+  createdAt: number;
+};
+
+export type SessionRollup = {
+  sessionId: string;
+  teams: number;
+  playing: number;
+  completed: number;
+  failed: number;
+  ready: number;
+  attention: number;
 };
 
 export type AdminSnapshot = {
@@ -150,4 +171,5 @@ export type AdminSnapshot = {
   lanHosts: string[];
   session: Session & { baseRemainingSec: number };
   teams: AdminTeam[];
+  timeLog: TimeLogEntry[];
 };

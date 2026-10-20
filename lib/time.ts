@@ -30,12 +30,13 @@ export function crisisElapsedSec(session: Session, team: Team, now: number) {
 }
 
 export function teamRemainingSec(session: Session, team: Team, now: number) {
-  if (session.status === "draft") return session.durationSec;
+  const grant = session.timeAdjustSec + (team.timeAdjustSec ?? 0);
+  if (session.status === "draft") return session.durationSec + grant;
   const freeze = team.finishedAt && (team.status === "completed" || team.status === "failed") ? team.finishedAt : now;
   const clockNow = team.status === "completed" || team.status === "failed" ? freeze : now;
   const offset = breachOffset(team);
-  if (offset === null) return session.durationSec + session.timeAdjustSec - team.penaltySec;
-  return session.durationSec + session.timeAdjustSec - team.penaltySec - crisisElapsedSec(session, team, clockNow);
+  if (offset === null) return session.durationSec + grant - team.penaltySec;
+  return session.durationSec + grant - team.penaltySec - crisisElapsedSec(session, team, clockNow);
 }
 
 export function running(session: Session) {

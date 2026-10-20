@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listSessions } from "@/lib/db/store";
+import { listSessionRollup, listSessions } from "@/lib/db/store";
 import { parseMode } from "@/lib/game/awareness";
 import { parseSector } from "@/lib/game/sector";
 import { createSession } from "@/lib/game/actions";
@@ -12,7 +12,8 @@ export async function GET() {
   const denied = await adminGuard();
   if (denied) return denied;
   const sessions = await listSessions();
-  return NextResponse.json({ ok: true, sessions });
+  const counts = await listSessionRollup();
+  return NextResponse.json({ ok: true, sessions, counts });
 }
 
 export async function POST(request: Request) {

@@ -4,7 +4,8 @@ import { emptyAwareness, parseAwareness, parseMode } from "../game/awareness";
 import { parseSector, type Sector } from "../game/sector";
 import { emptyStory, parseStory } from "../game/story";
 import type { GameMode } from "../game/awareness";
-import type { Session, SessionStatus, Team, TeamStatus } from "../types";
+import { teamRemainingSec } from "../time";
+import type { Session, SessionRollup, SessionStatus, Team, TeamStatus } from "../types";
 import { sql } from "./sql";
 
 type SessionRow = {
@@ -44,6 +45,7 @@ type TeamRow = {
   phish_reported: number;
   story_json: string | null;
   awareness_json?: string | null;
+  time_adjust_sec?: number | null;
 };
 
 function parse<T>(value: string, fallback: T): T {
@@ -103,18 +105,51 @@ function teamOf(row: TeamRow): Team {
     lastProgressAt: num(row.last_progress_at),
     breachOffsetSec: numOrNull(row.breach_offset_sec),
     phishReported: num(row.phish_reported) === 1,
+    timeAdjustSec: num(row.time_adjust_sec),
     awareness: parseAwareness(parse(row.awareness_json || "{}", {})),
     story: parseStory(parse(row.story_json || "{}", {})),
   };
 }
 
 const SESSION_COLS = `id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector`;
-const TEAM_COLS = `id, session_id, name, code, status, solved_json, hints_json, instructor_hints_json, inventory_json, events_seen_json, penalty_sec, fails, finished_at, updated_at, last_progress_at, breach_offset_sec, phish_reported, story_json, awareness_json`;
+const TEAM_COLS = `id, session_id, name, code, status, solved_json, hints_json, instructor_hints_json, inventory_json, events_seen_json, penalty_sec, fails, finished_at, updated_at, last_progress_at, breach_offset_sec, phish_reported, story_json, awareness_json, time_adjust_sec`;
 
 export async function listSessions() {
   const db = await sql();
   const rows = await db.all<SessionRow>(`SELECT ${SESSION_COLS} FROM sessions ORDER BY created_at DESC`);
   return rows.map(sessionOf);
+}
+
+export async function listSessionRollup(now = Date.now()): Promise<SessionRollup[]> {
+  const db = await sql();
+  const rows = await db.all<{
+    session_id: string;
+    teams: number;
+    playing: number;
+    completed: number;
+    failed: number;
+    ready: number;
+    attention: number;
+  }>(
+    `SELECT session_id,
+      COUNT(*) AS teams,
+      SUM(CASE WHEN status = 'playing' THEN 1 ELSE 0 END) AS playing,
+      SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+      SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
+      SUM(CASE WHEN status = 'ready' THEN 1 ELSE 0 END) AS ready,
+      SUM(CASE WHEN status = 'playing' AND last_progress_at < ? THEN 1 ELSE 0 END) AS attention
+     FROM teams GROUP BY session_id`,
+    [now - 5 * 60 * 1000],
+  );
+  return rows.map((row) => ({
+    sessionId: row.session_id,
+    teams: num(row.teams),
+    playing: num(row.playing),
+    completed: num(row.completed),
+    failed: num(row.failed),
+    ready: num(row.ready),
+    attention: num(row.attention),
+  }));
 }
 
 export async function getSession(id: string) {
@@ -215,6 +250,7 @@ export async function createSession(input: {
       lastProgressAt: now,
       breachOffsetSec: null,
       phishReported: false,
+      timeAdjustSec: 0,
       awareness: emptyAwareness(),
       story: emptyStory(),
     };
@@ -256,6 +292,170 @@ async function insertTeam(team: Team) {
 export async function setTeamCode(id: string, code: string) {
   const db = await sql();
   await db.run(`UPDATE teams SET code = ? WHERE id = ?`, [code, id]);
+}
+
+export async function clearTeamTime(teamId: string) {
+  const db = await sql();
+  await db.run(`UPDATE teams SET time_adjust_sec = 0 WHERE id = ?`, [teamId]);
+}
+
+export async function renameTeam(id: string, name: string) {
+  const db = await sql();
+  const wrote = await db.run(`UPDATE teams SET name = ? WHERE id = ?`, [name, id]);
+  if (!wrote) return { error: "Team niet gevonden." as const };
+  return { ok: true as const };
+}
+
+export async function removeReadyTeam(id: string) {
+  const db = await sql();
+  const row = await db.get<TeamRow>(`SELECT ${TEAM_COLS} FROM teams WHERE id = ?`, [id]);
+  if (!row) return { error: "Team niet gevonden." as const };
+  const team = teamOf(row);
+  const hints = Object.keys(team.hints).length + Object.keys(team.instructorHints).length;
+  if (team.status !== "ready" || team.solved.length > 0 || hints > 0 || team.fails > 0) {
+    return { error: "Dit team heeft al spelvoortgang en blijft bewaard." as const };
+  }
+  await db.run(`DELETE FROM teams WHERE id = ? AND status = 'ready'`, [id]);
+  return { ok: true as const };
+}
+
+export async function addDraftTeam(sessionId: string, name: string) {
+  const found = await getSession(sessionId);
+  if (!found) return { error: "Sessie niet gevonden." as const };
+  if (found.session.status !== "draft") return { error: "Teams toevoegen kan zolang de sessie nog niet is gestart." as const };
+  if (found.teams.length >= 24) return { error: "Een sessie heeft maximaal 24 teams." as const };
+  const db = await sql();
+  let code = makeCode();
+  for (let i = 0; i < 8; i += 1) {
+    const exists = await db.get<{ code: string }>(`SELECT code FROM teams WHERE code = ?`, [code]);
+    if (!exists) break;
+    code = makeCode();
+  }
+  const now = Date.now();
+  const team: Team = {
+    id: makeId(),
+    sessionId,
+    name,
+    code,
+    status: "ready",
+    solved: [],
+    hints: {},
+    instructorHints: {},
+    inventory: [],
+    eventsSeen: [],
+    penaltySec: 0,
+    fails: 0,
+    finishedAt: null,
+    updatedAt: now,
+    lastProgressAt: now,
+    breachOffsetSec: null,
+    phishReported: false,
+    timeAdjustSec: 0,
+    awareness: emptyAwareness(),
+    story: emptyStory(),
+  };
+  await insertTeam(team);
+  return { ok: true as const, team };
+}
+
+export async function updateDraft(
+  id: string,
+  patch: Partial<Pick<Session, "name" | "durationSec" | "hintPenalty" | "hintPenaltySec" | "mode" | "sector">>,
+) {
+  const found = await getSession(id);
+  if (!found) return { error: "Sessie niet gevonden." as const };
+  if (found.session.status !== "draft") return { error: "Alleen een sessie die nog niet is gestart, kan worden bewerkt." as const };
+  await saveSession({ ...found.session, ...patch });
+  return { ok: true as const };
+}
+
+export async function deleteSession(id: string) {
+  const db = await sql();
+  const existing = await db.get<{ id: string }>(`SELECT id FROM sessions WHERE id = ?`, [id]);
+  if (!existing) return false;
+  await db.run(`DELETE FROM time_adjustments WHERE session_id = ?`, [id]);
+  await db.run(`DELETE FROM teams WHERE session_id = ?`, [id]);
+  await db.run(`DELETE FROM sessions WHERE id = ?`, [id]);
+  return true;
+}
+
+export type TimeGrant = {
+  id: string;
+  targets: string;
+  seconds: number;
+  actor: string;
+  reason: string;
+  createdAt: number;
+};
+
+export async function listTimeGrants(sessionId: string) {
+  const db = await sql();
+  const rows = await db.all<{ id: string; targets_json: string; seconds: number; actor: string; reason?: string | null; created_at: number }>(
+    `SELECT id, targets_json, seconds, actor, reason, created_at FROM time_adjustments WHERE session_id = ? ORDER BY created_at DESC`,
+    [sessionId],
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    targets: String(row.targets_json ?? ""),
+    seconds: num(row.seconds),
+    actor: row.actor,
+    reason: String(row.reason ?? ""),
+    createdAt: num(row.created_at),
+  }));
+}
+
+export async function grantTime(input: {
+  session: Session;
+  requestId: string;
+  teamId: string | null;
+  seconds: number;
+  actor: string;
+  reason: string;
+  teams: Team[];
+}) {
+  const db = await sql();
+  const existing = await db.get<{ id: string }>(
+    `SELECT id FROM time_adjustments WHERE session_id = ? AND request_key = ?`,
+    [input.session.id, input.requestId],
+  );
+  if (existing) return { duplicate: true as const, applied: [] as string[], skipped: [] as string[] };
+  const chosen = input.teamId ? input.teams.filter((team) => team.id === input.teamId) : input.teams;
+  if (input.teamId && chosen.length === 0) return { error: "Team niet gevonden." as const };
+  const id = makeId();
+  const now = Date.now();
+  try {
+    await db.run(
+      `INSERT INTO time_adjustments (id, session_id, request_key, targets_json, seconds, actor, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, input.session.id, input.requestId, "bezig", input.seconds, input.actor, input.reason, now],
+    );
+  } catch {
+    return { duplicate: true as const, applied: [] as string[], skipped: [] as string[] };
+  }
+  const applied: string[] = [];
+  const skipped: string[] = [];
+  for (const team of chosen) {
+    if (team.status !== "ready" && team.status !== "playing") {
+      skipped.push(team.name);
+      continue;
+    }
+    let delta = input.seconds;
+    if (delta < 0) {
+      const room = Math.max(0, teamRemainingSec(input.session, team, now) - 60);
+      if (room < 1) {
+        skipped.push(`${team.name} (te weinig tijd over)`);
+        continue;
+      }
+      delta = -Math.min(-delta, room);
+    }
+    const wrote = await db.run(
+      `UPDATE teams SET time_adjust_sec = time_adjust_sec + ? WHERE id = ? AND status IN ('ready', 'playing')`,
+      [delta, team.id],
+    );
+    if (wrote > 0) applied.push(delta === input.seconds ? team.name : `${team.name} (${delta > 0 ? "+" : ""}${Math.round(delta / 60)} min)`);
+    else skipped.push(team.name);
+  }
+  await db.run(`UPDATE time_adjustments SET targets_json = ? WHERE id = ?`, [applied.length > 0 ? applied.join(", ") : "geen team", id]);
+  return { duplicate: false as const, applied, skipped };
 }
 
 export async function saveSession(session: Session) {

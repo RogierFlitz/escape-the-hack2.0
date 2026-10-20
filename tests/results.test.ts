@@ -45,6 +45,7 @@ function team(partial: Partial<Team> = {}): Team {
     lastProgressAt: 1,
     breachOffsetSec: 30,
     phishReported: false,
+    timeAdjustSec: 0,
     awareness: emptyAwareness(),
     story: emptyStory(),
     ...partial,
@@ -106,6 +107,11 @@ test("twaalf teams, bezig en mislukt, zonder verzonnen missietijd", () => {
   assert.equal(resultsCsv(report, false).includes("percentage"), false);
   assert.equal(resultsCsv(report, false).includes("C0"), false);
   assert.equal(resultsCsv(report, true).includes("C0"), true);
+  const gifted = team({ name: "Extra", timeAdjustSec: 600, status: "playing" });
+  const giftedReport = sessionReport(session, [gifted], now);
+  assert.equal(giftedReport.teams[0].extraSec, 600);
+  assert.equal(resultsCsv(giftedReport, false).includes("extra_tijd_sec"), true);
+  assert.equal(resultsCsv(giftedReport, false).includes("600"), true);
 });
 
 test("een foutloze afronding krijgt algemene aanbevelingen, een gemiste mail een gemeten punt", () => {

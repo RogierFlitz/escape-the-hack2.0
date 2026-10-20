@@ -51,6 +51,7 @@ function team(partial: Partial<Team> = {}): Team {
     lastProgressAt: 0,
     breachOffsetSec: 0,
     phishReported: false,
+    timeAdjustSec: 0,
     awareness: emptyAwareness(),
     story: emptyStory(),
     ...partial,
@@ -298,6 +299,9 @@ test("timer bevriest tijdens pauze en hintstraf telt per team", () => {
   assert.equal(baseRemainingSec(paused, 1_000_000 + 120_000), 3540);
   const playing = team({ penaltySec: 30 });
   assert.equal(teamRemainingSec(session, playing, 1_000_000 + 10_000), 3560);
+  const gifted = team({ timeAdjustSec: 300, breachOffsetSec: 0 });
+  assert.equal(teamRemainingSec(session, gifted, 1_000_000 + 10_000), 3890);
+  assert.equal(scoreBreakdown(session, gifted, 1_000_000 + 10_000).total, scoreBreakdown(session, team({ breachOffsetSec: 0 }), 1_000_000 + 10_000).total);
 });
 
 test("eindscore telt puzzels, hoofdstukken, tijd en afronding", () => {

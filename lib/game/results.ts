@@ -74,6 +74,7 @@ export type TeamReport = {
   hints: number;
   instructorHints: number;
   penaltySec: number;
+  extraSec: number;
   fails: number;
   phish: "gemeld" | "niet gemeld" | "nog niet aan de beurt";
   missionsDone: number;
@@ -370,6 +371,7 @@ function teamReport(session: Session, team: Team, now: number): TeamReport {
     hints: hintCount(team),
     instructorHints: instructorCount(team),
     penaltySec: team.penaltySec,
+    extraSec: session.timeAdjustSec + (team.timeAdjustSec ?? 0),
     fails: team.fails,
     phish: team.breachOffsetSec === null ? "nog niet aan de beurt" : team.phishReported ? "gemeld" : "niet gemeld",
     missionsDone: completedChapters(team.solved),
@@ -508,6 +510,7 @@ export function resultsCsv(report: SessionReport, includeCodes: boolean) {
     "hints",
     "instructeurhints",
     "strafseconden",
+    "extra_tijd_sec",
     "afgekeurde_pogingen",
     "valse_mail",
     "crisistijd_sec",
@@ -534,6 +537,7 @@ export function resultsCsv(report: SessionReport, includeCodes: boolean) {
         row.hints,
         row.instructorHints,
         team?.penaltySec ?? 0,
+        team?.extraSec ?? 0,
         row.fails,
         team?.phish ?? "",
         row.elapsedSec,

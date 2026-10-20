@@ -42,9 +42,24 @@ CREATE TABLE IF NOT EXISTS teams (
   finished_at BIGINT,
   updated_at BIGINT NOT NULL,
   last_progress_at BIGINT NOT NULL,
-  awareness_json TEXT NOT NULL DEFAULT '{}'
+  breach_offset_sec INTEGER,
+  phish_reported INTEGER NOT NULL DEFAULT 0,
+  story_json TEXT NOT NULL DEFAULT '{}',
+  awareness_json TEXT NOT NULL DEFAULT '{}',
+  time_adjust_sec INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS teams_session ON teams(session_id);
+CREATE TABLE IF NOT EXISTS time_adjustments (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  request_key TEXT NOT NULL,
+  targets_json TEXT NOT NULL,
+  seconds INTEGER NOT NULL,
+  actor TEXT NOT NULL,
+  reason TEXT NOT NULL DEFAULT '',
+  created_at BIGINT NOT NULL,
+  UNIQUE(session_id, request_key)
+);
 `;
 
 const MIGRATIONS = [
@@ -54,6 +69,8 @@ const MIGRATIONS = [
   "ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'escape'",
   "ALTER TABLE sessions ADD COLUMN sector TEXT NOT NULL DEFAULT 'general'",
   "ALTER TABLE teams ADD COLUMN awareness_json TEXT NOT NULL DEFAULT '{}'",
+  "ALTER TABLE teams ADD COLUMN time_adjust_sec INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE time_adjustments ADD COLUMN reason TEXT NOT NULL DEFAULT ''",
 ];
 
 function migrateSqlite(db: DatabaseSync) {

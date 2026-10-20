@@ -1,5 +1,5 @@
 import "server-only";
-import { createSession, getByCode, getSession, saveSession, saveTeam, setTeamCode } from "../db/store";
+import { addDraftTeam, clearTeamTime, createSession, getByCode, getSession, grantTime, removeReadyTeam, renameTeam, saveSession, saveTeam, setTeamCode, updateDraft } from "../db/store";
 import { allSolved, currentChapterId } from "../scoring";
 import { elapsedSec, inOffice, teamRemainingSec } from "../time";
 import type { Session, Team } from "../types";
@@ -7,12 +7,17 @@ import { puzzles } from "./content";
 import { grade } from "./grade";
 import { hintText } from "./hints";
 import { DEMO_CODE, demoProgress, type DemoStop } from "./demo";
-import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, recordDecision, recordEval } from "./awareness";
+import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, recordDecision, recordEval } from "./awareness";
 import { applyStory, emptyStory, lastTransmission, missionReady, nextBeat } from "./story";
+import { parseSector } from "./sector";
 import type { StoryInput, StoryState } from "./story";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function clip(value: unknown, max: number) {
+  return String(value ?? "").trim().slice(0, max);
 }
 
 type Change = { team: Team; mismatch?: boolean; note?: string } | { error: string } | null;
@@ -254,7 +259,22 @@ export async function instructorHint(sessionId: string, teamId: string, puzzleId
   return { hint: hintText(target.id, shown + 1).at(-1) ?? "", puzzle: target.title };
 }
 
-export async function controlSession(sessionId: string, action: string, seconds = 0) {
+export async function controlSession(
+  sessionId: string,
+  action: string,
+  seconds = 0,
+  options: {
+    teamId?: string;
+    requestId?: string;
+    reason?: string;
+    name?: string;
+    durationMin?: number;
+    hintPenalty?: boolean;
+    hintPenaltySec?: number;
+    mode?: string;
+    sector?: string;
+  } = {},
+) {
   const found = await getSession(sessionId);
   if (!found) return { error: "Sessie niet gevonden." };
   const now = Date.now();
@@ -303,19 +323,66 @@ export async function controlSession(sessionId: string, action: string, seconds 
     return { ok: true as const };
   }
   if (action === "adjust") {
-    if (session.status === "draft" || session.status === "ended") return { error: "De timer kan nu niet worden aangepast." };
+    if (session.status === "ended") return { error: "De timer kan nu niet worden aangepast." };
     if (!Number.isFinite(seconds) || seconds === 0) return { error: "Kies een tijdswijziging." };
-    const delta = Math.max(-3600, Math.min(3600, Math.round(seconds)));
-    session.timeAdjustSec += delta;
-    await saveSession(session);
-    for (const team of found.teams) {
-      if (team.status !== "failed" || allSolved(team.solved)) continue;
-      if (teamRemainingSec(session, { ...team, finishedAt: null, status: "playing" }, now) > 0) {
-        const next = { ...team, status: "playing" as const, finishedAt: null, updatedAt: now };
-        await saveTeam(team.updatedAt, next);
-      }
-    }
-    return { ok: true as const };
+    const requestId = String(options.requestId ?? "").trim();
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(requestId)) return { error: "De tijdswijziging mist een controlecode." };
+    const delta = Math.max(-10800, Math.min(10800, Math.round(seconds)));
+    const granted = await grantTime({
+      session,
+      requestId,
+      teamId: options.teamId?.trim() || null,
+      seconds: delta,
+      actor: "Instructeur",
+      reason: clip(options.reason, 160),
+      teams: found.teams,
+    });
+    if ("error" in granted) return { error: granted.error };
+    if (granted.duplicate) return { ok: true as const, duplicate: true as const, notice: "Deze wijziging was al uitgevoerd." };
+    const amount = `${delta > 0 ? "+" : ""}${delta / 60} min`;
+    const who = granted.applied.length > 0 ? granted.applied.join(", ") : "geen lopend team";
+    const skipped = granted.skipped.length > 0 ? ` Overgeslagen: ${granted.skipped.join(", ")}.` : "";
+    return {
+      ok: true as const,
+      duplicate: false as const,
+      notice: granted.applied.length > 0 ? `${amount} voor ${who}.${skipped}` : `Geen lopend team. Afgeronde teams zijn niet herstart.${skipped}`,
+    };
+  }
+  if (action === "rename") {
+    const name = clip(options.name, 32);
+    if (!options.teamId || !name) return { error: "Kies een team en een naam." };
+    const renamed = await renameTeam(options.teamId, name);
+    if ("error" in renamed) return renamed;
+    return { ok: true as const, notice: `Team heet nu ${name}.` };
+  }
+  if (action === "remove-team") {
+    if (!options.teamId) return { error: "Kies een team." };
+    const removed = await removeReadyTeam(options.teamId);
+    if ("error" in removed) return removed;
+    return { ok: true as const, notice: "Team verwijderd." };
+  }
+  if (action === "add-team") {
+    const name = clip(options.name, 32);
+    if (!name) return { error: "Vul een teamnaam in." };
+    const added = await addDraftTeam(sessionId, name);
+    if ("error" in added) return added;
+    return { ok: true as const, notice: `${name} is toegevoegd. Code ${added.team.code}.` };
+  }
+  if (action === "retune") {
+    const durationMin = Number(options.durationMin);
+    const penalty = Number(options.hintPenaltySec);
+    if (!Number.isFinite(durationMin) || durationMin < 10 || durationMin > 180) return { error: "Speelduur moet tussen 10 en 180 minuten liggen." };
+    if (!Number.isFinite(penalty) || penalty < 0 || penalty > 300) return { error: "Tijdstraf per hint moet tussen 0 en 300 seconden liggen." };
+    const tuned = await updateDraft(sessionId, {
+      name: clip(options.name, 60) || session.name,
+      durationSec: Math.round(durationMin * 60),
+      hintPenalty: options.hintPenalty !== false,
+      hintPenaltySec: Math.round(penalty),
+      mode: parseMode(options.mode),
+      sector: parseSector(options.sector),
+    });
+    if ("error" in tuned) return tuned;
+    return { ok: true as const, notice: "Instellingen bewaard. De klok is niet gestart." };
   }
   if (action === "skip-prologue") {
     for (const team of found.teams) {
@@ -374,11 +441,13 @@ export async function openDemo(stop: DemoStop) {
     lastProgressAt: now,
     breachOffsetSec: progress.breach ? 0 : null,
     phishReported: false,
+    timeAdjustSec: 0,
     awareness: stop === "origin" ? emptyAwareness() : markPrologue({ awareness: emptyAwareness(), breachOffsetSec: null }, "skip").awareness,
     story: progress.story,
   };
   const wrote = await saveTeam(found.team.updatedAt, next);
   if (!wrote) return { error: "Probeer de demo opnieuw." as const };
+  await clearTeamTime(found.team.id);
   return { code: DEMO_CODE };
 }
 

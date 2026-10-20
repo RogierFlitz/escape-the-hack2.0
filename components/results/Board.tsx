@@ -116,6 +116,7 @@ export function TeamResult({ team, passRule, tieRule, disclaimer, modeNote, lega
         <div className="rs-stats">
           <div className="rs-card"><small>Speeltijd</small><strong>{formatClock(team.elapsedSec)}</strong></div>
           <div className="rs-card"><small>Resterende tijd</small><strong>{formatClock(team.remainingSec)}</strong></div>
+          <div className="rs-card"><small>Extra tijd</small><strong>{formatClock(team.extraSec)}</strong><small>Door de instructeur toegevoegd</small></div>
           <div className="rs-card"><small>Hints</small><strong>{team.hints}</strong><small>Instructeur {team.instructorHints}</small></div>
           <div className="rs-card"><small>Afgekeurde pogingen</small><strong>{team.fails}</strong><small>Niet per opdracht bewaard</small></div>
           <div className="rs-card"><small>Valse mail</small><strong>{team.phish}</strong></div>

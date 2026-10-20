@@ -15,6 +15,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     seconds?: number;
     teamId?: string;
     puzzleId?: string;
+    requestId?: string;
+    reason?: string;
+    name?: string;
+    durationMin?: number;
+    hintPenalty?: boolean;
+    hintPenaltySec?: number;
+    mode?: string;
+    sector?: string;
   } | null;
   if (!body?.action) return NextResponse.json({ ok: false, error: "Geen actie." }, { status: 400 });
   const result =
@@ -22,7 +30,17 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       ? await instructorHint(id, String(body.teamId ?? ""), body.puzzleId)
       : body.action === "replay" || body.action === "advance"
         ? await guideTeam(id, String(body.teamId ?? ""), body.action)
-        : await controlSession(id, body.action, Number(body.seconds ?? 0));
+        : await controlSession(id, body.action, Number(body.seconds ?? 0), {
+            teamId: body.teamId,
+            requestId: body.requestId,
+            reason: body.reason,
+            name: body.name,
+            durationMin: body.durationMin,
+            hintPenalty: body.hintPenalty,
+            hintPenaltySec: body.hintPenaltySec,
+            mode: body.mode,
+            sector: body.sector,
+          });
   if ("error" in result) return NextResponse.json({ ok: false, error: result.error }, { status: 400 });
   const snapshot = await adminSnapshot(id);
   return NextResponse.json({ ...result, snapshot });

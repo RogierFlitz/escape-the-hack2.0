@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { deleteSession } from "@/lib/db/store";
 import { adminSnapshot } from "@/lib/game/snapshot";
 import { adminGuard } from "@/lib/http";
 
@@ -12,4 +13,13 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const snapshot = await adminSnapshot(id);
   if (!snapshot) return NextResponse.json({ ok: false, error: "Sessie niet gevonden." }, { status: 404 });
   return NextResponse.json(snapshot);
+}
+
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const denied = await adminGuard();
+  if (denied) return denied;
+  const { id } = await context.params;
+  const removed = await deleteSession(id);
+  if (!removed) return NextResponse.json({ ok: false, error: "Sessie niet gevonden." }, { status: 404 });
+  return NextResponse.json({ ok: true });
 }
