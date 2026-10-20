@@ -661,6 +661,7 @@ h1, h2, h3, p { margin: 0; }
   background: #12304d; color: #e8f1fb; font-weight: 700; cursor: pointer;
 }
 .ol-cmd:disabled { opacity: 0.45; cursor: default; }
+.ol-report { border-color: #e2b15a; background: #3d3114; color: #ffe7b0; }
 .ol-empty { margin: 0; padding: 28px 16px; color: #9eb0c6; }
 .ol-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
 .ol-row { position: relative; }

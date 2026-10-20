@@ -731,12 +731,13 @@ function Mailbox({ investigation }: { investigation: Investigation }) {
               </div>
             )}
             <div className="ol-actions">
-              <Pin investigation={investigation} id={open.id} />
-              {open.id === "phish" && (
+              {open.id === "phish" ? (
                 <>
+                  <button className="ol-cmd ol-report" type="button" disabled={investigation.busy} onClick={() => investigation.onBreach(true)}>Meld als verdacht</button>
                   <button className="ol-cmd" type="button" disabled={investigation.busy} onClick={() => investigation.onBreach(false)}>Bijlage openen</button>
-                  <button className="ol-cmd" type="button" disabled={investigation.busy} onClick={() => investigation.onBreach(true)}>Melden als verdacht</button>
                 </>
+              ) : (
+                <Pin investigation={investigation} id={open.id} />
               )}
             </div>
           </>
