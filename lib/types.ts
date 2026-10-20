@@ -117,6 +117,7 @@ export type PlaySnapshot = {
   inventory: Token[];
   files: PlayFile[];
   events: { id: string; title: string; body: string; tone: "alert" | "message" | "glitch" }[];
+  inbox: { id: string; puzzle: string; text: string }[];
   leaderboard: { name: string; score: number; chapter: number; status: TeamStatus }[];
   score: {
     puzzlePoints: number;

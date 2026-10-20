@@ -47,6 +47,8 @@ export function PlayApp({ code }: { code: string }) {
   const [feedback, setFeedback] = useState<{ id: string; text: string } | null>(null);
   const [originTick, setOriginTick] = useState(0);
   const [now, setNow] = useState(Date.now());
+  const [dismissedHints, setDismissedHints] = useState<string[]>([]);
+  const [inboxReady, setInboxReady] = useState(false);
   const synced = useRef(Date.now());
   const seenEvent = useRef("");
   const playedEnd = useRef(false);
@@ -108,6 +110,11 @@ export function PlayApp({ code }: { code: string }) {
     }
     setAudio(soundOn());
     setAlertsSeen(sessionStorage.getItem(`eth-m6-alerts-${code}`) === "1");
+    try {
+      const stored = JSON.parse(localStorage.getItem(`eth-inbox-${code}`) || "[]") as string[];
+      if (Array.isArray(stored)) setDismissedHints(stored.filter((item) => typeof item === "string"));
+    } catch { /* oude lijst negeren */ }
+    setInboxReady(true);
     void pull();
     const poll = window.setInterval(() => void pull(), 2500);
     const tick = window.setInterval(() => setNow(Date.now()), 250);
@@ -664,6 +671,13 @@ export function PlayApp({ code }: { code: string }) {
         </div>
       )}
 
+      {inboxReady && <InstructorHint incoming={(snap.inbox ?? []).filter((item) => !dismissedHints.includes(item.id))} onClose={(id) => {
+        setDismissedHints((current) => {
+          const next = current.includes(id) ? current : [...current, id];
+          localStorage.setItem(`eth-inbox-${code}`, JSON.stringify(next));
+          return next;
+        });
+      }} />}
       {evalOpen && snap.finished && <PlayerResults code={code} onClose={() => setEvalOpen(false)} />}
 
       {snap.finished?.outcome === "completed" && !reportOpen && (
@@ -737,6 +751,25 @@ export function PlayApp({ code }: { code: string }) {
       )}
     </main>
     </SectorProvider>
+  );
+}
+
+function InstructorHint({ incoming, onClose }: { incoming: { id: string; puzzle: string; text: string }[]; onClose: (id: string) => void }) {
+  const current = incoming[0];
+  useEffect(() => {
+    if (current) playMessage();
+  }, [current?.id]);
+  if (!current) return null;
+  return (
+    <div className="hint-pop" role="dialog" aria-label="Hint van de instructeur">
+      <article>
+        <button className="hint-x" type="button" aria-label="Hint sluiten" onClick={() => onClose(current.id)}>×</button>
+        <p className="kicker">Hint van de instructeur</p>
+        <h2>{current.puzzle}</h2>
+        <p>{current.text}</p>
+        {incoming.length > 1 ? <p className="kicker" style={{ marginTop: 12 }}>Nog {incoming.length - 1} {incoming.length === 2 ? "hint" : "hints"}</p> : null}
+      </article>
+    </div>
   );
 }
 

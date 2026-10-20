@@ -101,9 +101,9 @@ export function InsiderDesk({
     <div className="rv in">
       <TaskCue id={puzzleId} nora={puzzleId === "ch5-camera" ? noraInsider : undefined} />
       <div className="rv-main">
-        <div className="sp-nav">
+        <div className="in-tabs" role="tablist" aria-label="Bewijs van missie 5">
           {sections.map((item) => (
-            <button key={item.id} className={section === item.id ? "on" : ""} type="button" onClick={() => { setSection(item.id); setZoom(null); }}>{item.label}</button>
+            <button key={item.id} className={section === item.id ? "on" : ""} type="button" role="tab" aria-selected={section === item.id} onClick={() => { setSection(item.id); setZoom(null); }}>{item.label}</button>
           ))}
         </div>
         {intro ? (
@@ -134,6 +134,7 @@ export function InsiderDesk({
           </div>
         ) : section === "time" ? (
           <ol className="in-time">
+            {puzzleId === "ch5-places" && <li><b>Gebruik deze regels</b><p>Zoek per persoon een plek en tik die rechts aan.</p></li>}
             {accessRows.map((row) => (
               <li key={`${row.time}-${row.kind}`}>
                 <b>{row.time}</b>
@@ -144,6 +145,7 @@ export function InsiderDesk({
           </ol>
         ) : section === "people" ? (
           <div className="in-people">
+            {puzzleId === "ch5-places" && <p className="in-note">Lees waar iemand zegt te zijn geweest. Koppel die plek rechts.</p>}
             {people.map((item) => (
               <article key={item.id}>
                 <h3>{item.name}</h3>
@@ -280,32 +282,55 @@ function PlaceCase({
   onSolve: (payload: unknown) => void;
 }) {
   const slots = [
-    { id: "vale", label: "J. Vale" },
-    { id: "crew", label: "De werkjas" },
-    { id: "okonkwo", label: "M. Okonkwo" },
-    { id: "crowe", label: "L. Crowe" },
+    { id: "vale", label: "J. Vale", hint: "Nachtdienst" },
+    { id: "crew", label: "De werkjas", hint: "De persoon in een werkjas op de beelden" },
+    { id: "okonkwo", label: "M. Okonkwo", hint: "Netwerk" },
+    { id: "crowe", label: "L. Crowe", hint: "Analist" },
   ];
-  const ready = slots.every((slot) => places[slot.id]) && Boolean(badge);
+  const filled = slots.filter((slot) => places[slot.id]).length;
+  const ready = filled === slots.length && Boolean(badge);
   return (
     <aside className="fp-side">
-      <p className="kicker">Waar</p>
-      <p>Zet elke persoon op de plek die de beelden of het ticket tonen. De log is een registratie, geen camera.</p>
-      {slots.map((slot) => (
-        <div key={slot.id} className="in-slot">
-          <b>{slot.label}</b>
-          <div className="sp-nav">
-            {placeChoices.map((place) => (
-              <button key={place.id} className={places[slot.id] === place.id ? "on" : ""} type="button" onClick={() => setPlaces((current) => ({ ...current, [slot.id]: place.id }))}>{place.label}</button>
-            ))}
+      <p className="kicker">Waar was wie</p>
+      <ol className="in-steps">
+        <li>Lees links de Tijdlijn of de Dossiers.</li>
+        <li>Tik bij elke persoon één plek. Die plek licht blauw op.</li>
+        <li>Kies daarna of pas 4418 en het beeld van 02:31 hetzelfde laten zien.</li>
+      </ol>
+      <p className="in-count">{filled} van {slots.length} gekoppeld{badge ? " · pasvergelijking gekozen" : ""}</p>
+      {slots.map((slot, index) => {
+        const chosen = placeChoices.find((place) => place.id === places[slot.id]);
+        return (
+          <div key={slot.id} className={`in-slot${chosen ? " done" : ""}`}>
+            <b>{index + 1}. {slot.label}</b>
+            <small>{slot.hint}</small>
+            <div className="in-picks" role="group" aria-label={`Plek voor ${slot.label}`}>
+              {placeChoices.map((place) => (
+                <button
+                  key={place.id}
+                  className={`fp-chip${places[slot.id] === place.id ? " on" : ""}`}
+                  type="button"
+                  aria-pressed={places[slot.id] === place.id}
+                  onClick={() => setPlaces((current) => ({ ...current, [slot.id]: place.id }))}
+                >
+                  {place.label}
+                </button>
+              ))}
+            </div>
+            <small>{chosen ? `Gekozen: ${chosen.label}` : "Tik een plek"}</small>
           </div>
+        );
+      })}
+      <div className={`in-slot${badge ? " done" : ""}`}>
+        <b>5. Pas 4418 om 02:31</b>
+        <small>Vergelijk de pasregistratie met het beeld van datzelfde moment. Kies één.</small>
+        <div className="in-picks" role="group" aria-label="Vergelijking van pas en beeld">
+          <button className={`fp-chip${badge === "same" ? " on" : ""}`} type="button" aria-pressed={badge === "same"} onClick={() => setBadge("same")}>Ze horen bij elkaar</button>
+          <button className={`fp-chip${badge === "apart" ? " on" : ""}`} type="button" aria-pressed={badge === "apart"} onClick={() => setBadge("apart")}>Ze wijken af</button>
         </div>
-      ))}
-      <p>Pas 4418 om 02:31 en de beelden van dat moment:</p>
-      <div className="sp-nav">
-        <button className={badge === "same" ? "on" : ""} type="button" onClick={() => setBadge("same")}>Horen bij elkaar</button>
-        <button className={badge === "apart" ? "on" : ""} type="button" onClick={() => setBadge("apart")}>Wijken af</button>
       </div>
       <button className="btn btn-mint" type="button" disabled={busy || solved || !ready} onClick={() => onSolve({ places, badge })}>Plekken vastleggen</button>
+      {!ready && <p className="in-note">{filled < slots.length ? "Elke persoon heeft nog een plek nodig." : "Kies nog of de pas en het beeld overeenkomen."}</p>}
     </aside>
   );
 }

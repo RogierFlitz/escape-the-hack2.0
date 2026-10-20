@@ -561,6 +561,8 @@ test("een instructeurshint kost geen tijd en een eigen extra hint blijft apart",
     "Vergelijk de pin met de bron.",
     "Eén pin hoort nog niet.",
   ]);
+  assert.equal(after.inbox.some((item) => item.id === "ch1-bays:hint:1"), true);
+  assert.equal(after.inbox.some((item) => item.text === "Kijk nog eens naar de eerste pin."), true);
   assert.equal(after.team.penaltySec, before.team.penaltySec);
   assert.equal(after.team.score, before.team.score);
   assert.equal(after.progress.solved, before.progress.solved);

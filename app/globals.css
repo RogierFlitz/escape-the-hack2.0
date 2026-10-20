@@ -1351,6 +1351,41 @@ h1, h2, h3, p { margin: 0; }
 .office-root .brand small { color: #5d6e80; }
 .office-root .btn-primary { background: #1d6a93; color: #ffffff; border-color: #1d6a93; }
 .office-root .timer { color: #1d6a93; font-size: 22px; letter-spacing: 0.04em; }
+.hint-pop {
+  position: fixed;
+  inset: 0;
+  z-index: 96;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 10, 18, 0.72);
+}
+.hint-pop article {
+  position: relative;
+  width: min(560px, 100%);
+  padding: 22px 56px 22px 22px;
+  border-radius: 16px;
+  border: 1px solid #22d3ee;
+  background: #102033;
+  color: #e7f2fb;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+.hint-pop h2 { margin: 4px 0 12px; font-size: clamp(22px, 3vw, 32px); }
+.hint-pop p { margin: 0; font-size: 18px; line-height: 1.45; }
+.hint-pop .hint-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid rgba(125, 211, 252, 0.45);
+  background: #0c1a28;
+  color: #e7f2fb;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+}
 .hack-overlay {
   position: fixed;
   inset: 0;
@@ -2701,6 +2736,16 @@ body.cine-fail .brief-app { animation: cine-jitter 0.45s steps(2, end) infinite;
 .in-chat b, .in-slot b { color: var(--cyan); }
 .in-board { display: grid; gap: 8px; }
 .in-slot { display: grid; gap: 4px; }
+.in-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.in-tabs button { min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: #101820; color: inherit; cursor: pointer; }
+.in-tabs button.on { border-color: var(--cyan); background: #0e4e86; color: #fff; }
+.in-steps { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 4px; }
+.in-count { margin: 0; color: var(--cyan); font-size: 13px; }
+.in-note { margin: 0; color: var(--muted); }
+.in-people .in-note { grid-column: 1 / -1; }
+.in-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.in-slot.done { padding-left: 8px; border-left: 3px solid var(--cyan); }
+.in-slot small { color: var(--muted); }
 
 .sd-alert { min-height: 280px; display: grid; align-content: center; gap: 14px; font-size: 22px; }
 .sd .fp-side { overflow: auto; min-height: 0; }

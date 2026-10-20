@@ -12,6 +12,23 @@ import { emptyStory, lastTransmission, missionReady } from "./story";
 
 const TOTAL = puzzles.length;
 
+function instructorInbox(team: Team) {
+  const notes: { id: string; puzzle: string; text: string }[] = [];
+  for (const puzzle of puzzles) {
+    const playerLevel = team.hints[puzzle.id] ?? 0;
+    const instructorLevel = team.instructorHints[puzzle.id] ?? 0;
+    const lines = hintText(puzzle.id, Math.max(playerLevel, instructorLevel));
+    for (let level = playerLevel + 1; level <= instructorLevel; level += 1) {
+      const text = lines[level - 1];
+      if (text) notes.push({ id: `${puzzle.id}:hint:${level}`, puzzle: puzzle.title, text });
+    }
+    (team.coach ?? []).forEach((item, index) => {
+      if (item.puzzleId === puzzle.id) notes.push({ id: `${puzzle.id}:coach:${index}`, puzzle: puzzle.title, text: item.text });
+    });
+  }
+  return notes;
+}
+
 function liveScore(session: Session, team: Team, now: number) {
   return scoreBreakdown(session, team, now);
 }
@@ -112,6 +129,7 @@ export function present(session: Session, team: Team, teams: Team[], now: number
     inventory: team.inventory.map((id) => ({ id, label: tokenLabel(id) })),
     files: files.filter((file) => file.chapter <= chapterId),
     events: pendingEvents(team, chapterId, remaining).map(({ id, title, body, tone }) => ({ id, title, body, tone })),
+    inbox: instructorInbox(team),
     leaderboard: ranked.map((item) => ({
       name: item.name,
       score: liveScore(session, item, now).total,

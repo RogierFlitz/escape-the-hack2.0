@@ -140,8 +140,8 @@ export const puzzleCues: Record<string, { text: string; action: string }> = {
     action: "Bewaar, daarna vastleggen",
   },
   "ch5-places": {
-    text: "Zet elke persoon op een plek en geef aan of het paslogboek bij het beeld past. Druk daarna op Plekken vastleggen.",
-    action: "Plaats, daarna vastleggen",
+    text: "Rechts koppel je elke persoon aan één plek. Tik de plek aan, die licht op. De regels daarvoor staan links bij Tijdlijn en Dossiers. Daarna kies je of pas 4418 en het beeld van 02:31 hetzelfde laten zien. Druk daarna op Plekken vastleggen.",
+    action: "Tik een plek, daarna vastleggen",
   },
   "ch5-share": {
     text: "Wijs de wijziging, de opening en het bijbehorende bericht aan. Druk daarna op Delen vastleggen.",
