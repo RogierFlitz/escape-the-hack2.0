@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Speech } from "@/lib/game/story";
+import { narrate, stopNarration } from "./narrate";
 
 export function KadeTransmission({
   scene,
@@ -23,21 +24,29 @@ export function KadeTransmission({
     setIndex(0);
   }, [scene.id, replay]);
 
-  useEffect(() => {
-    if (!audio || typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(scene.lines.join(" "));
-    utterance.lang = "nl-NL";
-    utterance.rate = 0.96;
-    window.speechSynthesis.speak(utterance);
-    return () => window.speechSynthesis.cancel();
-  }, [audio, scene.id, replay, scene.lines]);
+  const replayTick = useRef(replay);
 
   useEffect(() => {
-    if (last) return;
-    const timer = window.setTimeout(() => setIndex((value) => value + 1), 2200);
+    const line = scene.lines[index] ?? "";
+    if (replayTick.current !== replay) {
+      replayTick.current = replay;
+      stopNarration();
+    }
+    let alive = true;
+    if (audio) {
+      narrate(line, true, () => {
+        if (!alive || index >= scene.lines.length - 1) return;
+        setIndex((value) => value + 1);
+      });
+      return () => {
+        alive = false;
+      };
+    }
+    narrate(line, false);
+    if (index >= scene.lines.length - 1) return;
+    const timer = window.setTimeout(() => setIndex((value) => value + 1), 3200);
     return () => window.clearTimeout(timer);
-  }, [index, last, replay]);
+  }, [audio, scene.id, replay, index, scene.lines]);
 
   if (scene.id === "m2") {
     return <SupplierBrief scene={scene} onReplay={() => setReplay((value) => value + 1)} onDone={onDone} />;

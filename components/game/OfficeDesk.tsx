@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { phishReady } from "@/lib/game/office";
+import { PHISH_AFTER_MS, phishDue, phishReady } from "@/lib/game/office";
 import { Briefing } from "./Briefing";
 import { IntranetBody, type IntranetPage } from "./Intranet";
 import { OS_APPS, type OsAppId } from "./office/Center";
@@ -30,7 +30,7 @@ function readOffice(teamCode: string) {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(`eth-office-${teamCode}`);
-    return raw ? JSON.parse(raw) as { desk?: string; mailOpen?: boolean; briefed?: boolean; seen?: string[]; dossier?: string[]; noticed?: boolean; readMail?: string[] } : null;
+    return raw ? JSON.parse(raw) as { desk?: string; mailOpen?: boolean; briefed?: boolean; seen?: string[]; dossier?: string[]; noticed?: boolean; readMail?: string[]; startedAt?: number } : null;
   } catch {
     return null;
   }
@@ -244,7 +244,9 @@ export function OfficeDesk({
   const [toast, setToast] = useState(false);
   const [focus, setFocus] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
-  const ready = phishReady(seen);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [forced, setForced] = useState(false);
+  const ready = phishReady(seen) || forced;
 
   useEffect(() => {
     const saved = readOffice(teamCode);
@@ -260,13 +262,29 @@ export function OfficeDesk({
     if (saved?.dossier) setDossier(saved.dossier);
     if (saved?.noticed) setNoticed(true);
     if (saved?.briefed) setBriefed(true);
+    if (typeof saved?.startedAt === "number") setStartedAt(saved.startedAt);
     setRestored(true);
   }, [teamCode]);
 
   useEffect(() => {
     if (!restored) return;
-    localStorage.setItem(`eth-office-${teamCode}`, JSON.stringify({ desk: app, mailOpen, briefed, seen, dossier, noticed, readMail }));
-  }, [restored, teamCode, app, mailOpen, briefed, seen, dossier, noticed, readMail]);
+    localStorage.setItem(`eth-office-${teamCode}`, JSON.stringify({ desk: app, mailOpen, briefed, seen, dossier, noticed, readMail, startedAt }));
+  }, [restored, teamCode, app, mailOpen, briefed, seen, dossier, noticed, readMail, startedAt]);
+
+  useEffect(() => {
+    if (!restored || !briefed) return;
+    if (startedAt === null) {
+      setStartedAt(Date.now());
+      return;
+    }
+    const left = PHISH_AFTER_MS - (Date.now() - startedAt);
+    if (phishDue(startedAt, Date.now())) {
+      setForced(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setForced(true), left);
+    return () => window.clearTimeout(timer);
+  }, [restored, briefed, startedAt]);
 
   useEffect(() => {
     if (!restored || !ready || noticed) return;
@@ -292,12 +310,13 @@ export function OfficeDesk({
       <Briefing
         audio={audio}
         onToggleAudio={onToggleAudio}
-        onStart={() => { setBriefed(true); setApp("home"); setGrant(true); }}
+        onStart={() => { setBriefed(true); setApp("home"); setGrant(true); setStartedAt((current) => current ?? Date.now()); }}
       />
     );
   }
 
   const unread = ready && !mailOpen;
+  const mailCue = ready && !readMail.includes("phish");
   function see(id: string) {
     setSeen((current) => current.includes(id) ? current : [...current, id]);
   }
@@ -376,7 +395,11 @@ export function OfficeDesk({
           </header>
           <div className="tb-scroll">
             {grant && <p className="nx-grant tb-note" role="status">Beveiligde toegang verleend. Onderzoeksomgeving beschikbaar.</p>}
-            {toast && <p className="nx-toast tb-note" role="status">Nieuw bericht</p>}
+            {mailCue && (
+              <button className="nx-toast tb-note" type="button" onClick={() => openApp("outlook", "phish")}>
+                Nieuw bericht in Outlook. Open de mail.
+              </button>
+            )}
             <div className="tb-dash">
               <div className="tb-top">
                 <div className="tb-hi">
@@ -529,6 +552,11 @@ export function OfficeDesk({
         <header className="tb-bar">
           <button className="tb-back" type="button" onClick={() => openApp("home")}>← Beginscherm</button>
           <strong>{LABELS[app]}</strong>
+          {mailCue && app !== "outlook" && (
+            <button className="nx-toast tb-note" type="button" onClick={() => openApp("outlook", "phish")}>
+              Nieuw bericht in Outlook
+            </button>
+          )}
           {app === "outlook" && unread ? <em className="tb-inline-badge">1</em> : null}
           <div className="brief-user"><b>MV</b><span>Mara de Vries<small>Extern team</small></span></div>
         </header>

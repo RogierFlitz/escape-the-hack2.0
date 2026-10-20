@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { asSector } from "@/lib/game/sector";
 import { playGlitch, playIncoming, playLock } from "./audio";
+import { narrate } from "./narrate";
 import { speech } from "@/lib/game/story";
 import { useSector } from "./SectorSkin";
 
@@ -40,13 +41,8 @@ function clock(total: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function speak(line: string, audio: boolean) {
-  if (!audio || typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(line);
-  utterance.lang = "nl-NL";
-  utterance.rate = 0.98;
-  window.speechSynthesis.speak(utterance);
+function speak(line: string, audio: boolean, onDone?: () => void) {
+  narrate(line, audio, onDone);
 }
 
 function toggleFullscreen() {
@@ -140,9 +136,19 @@ export function AttackCine({
 
   useEffect(() => {
     if (phase !== "kade") return;
-    speak(asSector(sector, lines[line] ?? ""), audio);
+    const text = asSector(sector, lines[line] ?? "");
+    if (audio) {
+      let alive = true;
+      speak(text, true, () => {
+        if (!alive || line >= lines.length - 1) return;
+        setLine((value) => value + 1);
+      });
+      return () => {
+        alive = false;
+      };
+    }
     if (line >= lines.length - 1) return;
-    const timer = window.setTimeout(() => setLine((value) => value + 1), 1500);
+    const timer = window.setTimeout(() => setLine((value) => value + 1), 2800);
     return () => window.clearTimeout(timer);
   }, [phase, line, audio, lines, replay, sector]);
 
@@ -153,9 +159,19 @@ export function AttackCine({
       setNoraLine(NORA.length - 1);
       return;
     }
-    speak(asSector(sector, NORA[noraLine] ?? ""), audio);
+    const text = asSector(sector, NORA[noraLine] ?? "");
+    if (audio) {
+      let alive = true;
+      speak(text, true, () => {
+        if (!alive || noraLine >= NORA.length - 1) return;
+        setNoraLine((value) => value + 1);
+      });
+      return () => {
+        alive = false;
+      };
+    }
     if (noraLine >= NORA.length - 1) return;
-    const timer = window.setTimeout(() => setNoraLine((value) => value + 1), 1500);
+    const timer = window.setTimeout(() => setNoraLine((value) => value + 1), 2800);
     return () => window.clearTimeout(timer);
   }, [phase, noraLine, audio, sector]);
 

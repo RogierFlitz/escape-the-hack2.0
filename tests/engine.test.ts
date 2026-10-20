@@ -4,12 +4,13 @@ import { emptyAwareness, gradeDecision, gradeEval, markPrologue, parseMode, pend
 import { colleaguePost, sources } from "../lib/game/footprint";
 import { grade } from "../lib/game/grade";
 import { hintText } from "../lib/game/hints";
-import { phishReady } from "../lib/game/office";
+import { phishDue, phishReady } from "../lib/game/office";
 import { PUZZLE_IDS, puzzleCues } from "../lib/game/content";
 import { demoBeat, demoBlocked } from "../lib/game/demo";
 import { finaleSessions } from "../lib/game/shutdown";
 import { applyStory, emptyStory, nextBeat } from "../lib/game/story";
 import { asSector } from "../lib/game/sector";
+import { narrateHoldMs } from "../components/game/narrate";
 import { allSolved, currentChapterId, scoreBreakdown } from "../lib/scoring";
 import { baseRemainingSec, teamRemainingSec } from "../lib/time";
 import type { Session, Team } from "../lib/types";
@@ -275,6 +276,8 @@ test("de verdachte mail komt na genoeg onderzoek, zonder vaste volgorde", () => 
   assert.equal(phishReady(["astra", "doc-plan"]), false);
   assert.equal(phishReady(["doc-plan", "vendor-helix", "agenda-event"]), true);
   assert.equal(phishReady(["astra", "doc-plan", "mail-helix"]), true);
+  assert.equal(phishDue(1_000, 1_000 + 3 * 60 * 1000 - 1), false);
+  assert.equal(phishDue(1_000, 1_000 + 3 * 60 * 1000), true);
 });
 
 test("hoofdstukken gaan pas open als de vorige dicht is", () => {
@@ -536,4 +539,11 @@ test("een branche maakt het doelwit herkenbaar en laat de antwoorden staan", () 
   const clues = asSector("ministeries", "helix-svc DOCK-244 ROUTE-7 SEAL HX-19 kluis-nacht");
   assert.equal(clues, "helix-svc DOCK-244 ROUTE-7 SEAL HX-19 kluis-nacht");
   assert.equal(asSector("general", "Nexora Day"), "Nexora Day");
+});
+
+test("de verteller houdt een zin lang genoeg aan om hem rustig uit te spreken", () => {
+  const short = narrateHoldMs("Jullie zijn het beveiligingsteam.");
+  const long = narrateHoldMs("Jullie opdracht is om de aanval te reconstrueren, de toegang van KADE te blokkeren en de systemen te herstellen.");
+  assert.ok(short >= 4000);
+  assert.ok(long > short + 2500);
 });

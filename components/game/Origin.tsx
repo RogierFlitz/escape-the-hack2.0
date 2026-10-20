@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { asSector } from "@/lib/game/sector";
+import { narrate } from "./narrate";
 import { useSector } from "./SectorSkin";
 import {
   BREACH_LINE,
@@ -28,18 +29,19 @@ function startIndex(seen: string[], code: string) {
   return next === -1 ? PROLOGUE_SCENES.length : next;
 }
 
-function speak(line: string, audio: boolean) {
-  if (!audio || typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(line);
-  utterance.lang = "nl-NL";
-  utterance.rate = 0.96;
-  window.speechSynthesis.speak(utterance);
+function spokenLine(scene: string, step: number, brief: string[]) {
+  if (scene === "brief") return brief[step] ?? "";
+  if (scene === "ghost") return GHOST_LINE;
+  if (scene === "osint") return OSINT_LINES[0] ?? "";
+  if (scene === "human") return TRUST_LINES[Math.min(step, TRUST_LINES.length - 1)] ?? "";
+  if (scene === "breach") return BREACH_LINE;
+  if (scene === "market") return MARKET_LINES[Math.min(step, MARKET_LINES.length - 1)] ?? "";
+  return "";
 }
 
 function briefTypeMs(text: string) {
   if (!text) return 0;
-  return Math.min(1450, Math.max(480, text.length * 22));
+  return Math.max(2800, text.length * 82);
 }
 
 function subscribeReducedMotion(onChange: () => void) {
@@ -112,6 +114,7 @@ export function OriginPrologue({
   const reduce = useSyncExternalStore(subscribeReducedMotion, reducedMotionNow, () => false);
   const [step, setStep] = useState(0);
   const [glitch, setGlitch] = useState(false);
+  const [heard, setHeard] = useState<string | null>(null);
   const [typing, setTyping] = useState({ step: 0, count: 0 });
   const sector = useSector();
   const brief = useMemo(() => BRIEFING_LINES.map((line) => asSector(sector, line)), [sector]);
@@ -125,13 +128,34 @@ export function OriginPrologue({
   useEffect(() => {
     setStep(0);
     setGlitch(false);
+    setHeard(null);
     if (!audio) window.speechSynthesis?.cancel();
   }, [scene, audio]);
 
   useEffect(() => {
     if (!scene) return;
-    const line = scene === "brief" ? brief[step] : scene === "ghost" ? GHOST_LINE : scene === "osint" ? OSINT_LINES[0] : scene === "human" ? TRUST_LINES[Math.min(step, TRUST_LINES.length - 1)] : scene === "breach" ? BREACH_LINE : scene === "market" ? MARKET_LINES[Math.min(step, MARKET_LINES.length - 1)] : "";
-    if (line) speak(asSector(sector, line), audio);
+    const raw = spokenLine(scene, step, brief);
+    const line = raw ? asSector(sector, raw) : "";
+    if (!line) return;
+    let alive = true;
+    narrate(line, audio, () => {
+      if (!alive) return;
+      if (scene === "brief") {
+        if (step < brief.length - 1) setStep((value) => value + 1);
+        else finish("brief");
+        return;
+      }
+      if (scene === "human" || scene === "market") {
+        const cap = scene === "human" ? TRUST_LINES.length : MARKET_LINES.length;
+        if (step < cap - 1) setStep((value) => value + 1);
+        else finish(scene);
+        return;
+      }
+      if (scene === "ghost" || scene === "osint" || scene === "breach") setHeard(scene);
+    });
+    return () => {
+      alive = false;
+    };
   }, [scene, step, audio, brief, sector]);
 
   useEffect(() => {
@@ -143,8 +167,9 @@ export function OriginPrologue({
         const timer = window.setTimeout(() => finish("brief"), 7000);
         return () => window.clearTimeout(timer);
       }
+      if (audio) return;
       const line = brief[step] ?? "";
-      const hold = step < brief.length - 1 ? 680 : 1300;
+      const hold = step < brief.length - 1 ? 900 : 1600;
       const timer = window.setTimeout(() => {
         if (step < brief.length - 1) setStep((value) => value + 1);
         else finish("brief");
@@ -157,27 +182,28 @@ export function OriginPrologue({
     }
     if (scene === "ghost" || scene === "osint" || scene === "human" || scene === "market") {
       const cap = scene === "ghost" ? 4 : scene === "osint" ? 5 : scene === "human" ? TRUST_LINES.length : MARKET_LINES.length;
+      if (audio && (scene === "human" || scene === "market")) return;
+      const lineChanges = scene === "human" || scene === "market";
+      const gap = lineChanges ? Math.max(3200, briefTypeMs(spokenLine(scene, step, brief))) * pace : 3200 * pace;
       if (step < cap - 1) {
-        const timer = window.setTimeout(() => setStep((value) => value + 1), 3200 * pace);
+        const timer = window.setTimeout(() => setStep((value) => value + 1), gap);
         return () => window.clearTimeout(timer);
       }
-      const timer = window.setTimeout(() => finish(scene), 2800 * pace);
+      if (audio && (scene === "ghost" || scene === "osint") && heard !== scene) return;
+      const timer = window.setTimeout(() => finish(scene), audio ? 800 : 2800 * pace);
       return () => window.clearTimeout(timer);
     }
     if (scene === "breach") {
       if (!reduce && step === 3 && !glitch) {
         const timer = window.setTimeout(() => setGlitch(true), 400);
-        const done = window.setTimeout(() => finish("breach"), 1600);
-        return () => {
-          window.clearTimeout(timer);
-          window.clearTimeout(done);
-        };
+        return () => window.clearTimeout(timer);
       }
       if (step < 3) {
         const timer = window.setTimeout(() => setStep((value) => value + 1), 2800 * pace);
         return () => window.clearTimeout(timer);
       }
-      const timer = window.setTimeout(() => finish("breach"), reduce ? 900 : 1800);
+      if (audio && heard !== "breach") return;
+      const timer = window.setTimeout(() => finish("breach"), audio ? 800 : reduce ? 900 : 1800);
       return () => window.clearTimeout(timer);
     }
     if (scene === "hours") {
@@ -186,7 +212,7 @@ export function OriginPrologue({
       return () => window.clearTimeout(timer);
     }
     return () => window.clearTimeout(wait(0));
-  }, [scene, step, reduce, glitch, brief]);
+  }, [scene, step, reduce, glitch, brief, audio, heard]);
 
   useEffect(() => {
     if (scene !== "brief" || reduce) return;
