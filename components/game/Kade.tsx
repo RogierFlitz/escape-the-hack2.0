@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Speech } from "@/lib/game/story";
+import { playSceneVoice, stopSceneVoice } from "./mix";
 import { narrate, stopNarration } from "./narrate";
 
 export function KadeTransmission({
@@ -33,11 +34,21 @@ export function KadeTransmission({
       stopNarration();
     }
     let alive = true;
+    if (audio && playSceneVoice(scene.id, index, () => {
+      if (!alive || index >= scene.lines.length - 1) return;
+      setIndex((value) => value + 1);
+    })) {
+      return () => {
+        alive = false;
+        stopSceneVoice();
+        stopNarration();
+      };
+    }
     if (audio) {
       narrate(line, true, () => {
         if (!alive || index >= scene.lines.length - 1) return;
         setIndex((value) => value + 1);
-      });
+      }, !nora);
       return () => {
         alive = false;
       };
@@ -46,7 +57,9 @@ export function KadeTransmission({
     if (index >= scene.lines.length - 1) return;
     const timer = window.setTimeout(() => setIndex((value) => value + 1), 3200);
     return () => window.clearTimeout(timer);
-  }, [audio, scene.id, replay, index, scene.lines]);
+  }, [audio, scene.id, replay, index, scene.lines, nora]);
+
+  useEffect(() => () => { stopSceneVoice(); stopNarration(); }, []);
 
   if (scene.id === "m2") {
     return <SupplierBrief scene={scene} onReplay={() => setReplay((value) => value + 1)} onDone={onDone} />;

@@ -43,6 +43,7 @@ type TeamRow = {
   finished_at: number | null;
   updated_at: number;
   last_progress_at: number;
+  last_seen_at?: number | null;
   breach_offset_sec: number | null;
   phish_reported: number;
   story_json: string | null;
@@ -118,6 +119,7 @@ function teamOf(row: TeamRow): Team {
     finishedAt: numOrNull(row.finished_at),
     updatedAt: num(row.updated_at),
     lastProgressAt: num(row.last_progress_at),
+    lastSeenAt: numOrNull(row.last_seen_at),
     breachOffsetSec: numOrNull(row.breach_offset_sec),
     phishReported: num(row.phish_reported) === 1,
     timeAdjustSec: num(row.time_adjust_sec),
@@ -128,7 +130,7 @@ function teamOf(row: TeamRow): Team {
 }
 
 const SESSION_COLS = `id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector, client_name, event_date`;
-const TEAM_COLS = `id, session_id, name, code, status, solved_json, hints_json, instructor_hints_json, inventory_json, events_seen_json, penalty_sec, fails, finished_at, updated_at, last_progress_at, breach_offset_sec, phish_reported, story_json, awareness_json, time_adjust_sec, coach_json`;
+const TEAM_COLS = `id, session_id, name, code, status, solved_json, hints_json, instructor_hints_json, inventory_json, events_seen_json, penalty_sec, fails, finished_at, updated_at, last_progress_at, last_seen_at, breach_offset_sec, phish_reported, story_json, awareness_json, time_adjust_sec, coach_json`;
 
 export async function listSessions() {
   const db = await sql();
@@ -270,6 +272,7 @@ export async function createSession(input: {
       finishedAt: null,
       updatedAt: now,
       lastProgressAt: now,
+      lastSeenAt: null,
       breachOffsetSec: null,
       phishReported: false,
       timeAdjustSec: 0,
@@ -309,6 +312,22 @@ async function insertTeam(team: Team) {
       JSON.stringify(team.story ?? emptyStory()),
       JSON.stringify(team.awareness ?? emptyAwareness()),
     ],
+  );
+}
+
+const presenceGate = new Map<string, number>();
+
+export async function notePresence(code: string) {
+  const key = code.trim().toUpperCase();
+  if (!key) return;
+  const now = Date.now();
+  const previous = presenceGate.get(key) ?? 0;
+  if (now - previous < 12_000) return;
+  presenceGate.set(key, now);
+  const db = await sql();
+  await db.run(
+    `UPDATE teams SET last_seen_at = ? WHERE code = ? AND (last_seen_at IS NULL OR last_seen_at < ?)`,
+    [now, key, now - 12_000],
   );
 }
 
@@ -385,6 +404,7 @@ export async function addDraftTeam(sessionId: string, name: string) {
     finishedAt: null,
     updatedAt: now,
     lastProgressAt: now,
+    lastSeenAt: null,
     breachOffsetSec: null,
     phishReported: false,
     timeAdjustSec: 0,

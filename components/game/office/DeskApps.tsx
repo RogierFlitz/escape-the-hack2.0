@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { readSoundSet, setSoundSet, soundSets, type SoundSetId } from "../audio";
+import { useEffect, useRef, useState } from "react";
+import { previewFragment, readSoundSet, setSoundSet, soundFragments, soundSets, type SoundSetId } from "../audio";
+import { deviceVoices, previewKade, previewVoice, readVoicePreset, voicePresets, type VoicePresetId } from "../narrate";
 import { Pin, type Investigation } from "../Intranet";
 import { deskNotes } from "./records";
 
@@ -162,12 +163,45 @@ export function SecurityApp() {
 
 export function SettingsApp({ audio, onToggleAudio }: { audio: boolean; onToggleAudio: () => void }) {
   const [activeSet, chooseSet] = useState<SoundSetId>("bureau");
+  const [voiceId, chooseVoice] = useState<VoicePresetId>("helder");
+  const [voices, setVoices] = useState<{ name: string; lang: string }[]>([]);
+  const mara = useRef<HTMLAudioElement | null>(null);
+  const maraToken = useRef(0);
   useEffect(() => {
     const sync = () => chooseSet(readSoundSet());
     sync();
     window.addEventListener("eth-sound-set", sync);
     return () => window.removeEventListener("eth-sound-set", sync);
   }, []);
+  useEffect(() => {
+    const sync = () => chooseVoice(readVoicePreset());
+    sync();
+    window.addEventListener("eth-voice", sync);
+    return () => window.removeEventListener("eth-voice", sync);
+  }, []);
+  useEffect(() => {
+    const read = () => setVoices(deviceVoices());
+    read();
+    window.speechSynthesis?.addEventListener("voiceschanged", read);
+    return () => window.speechSynthesis?.removeEventListener("voiceschanged", read);
+  }, []);
+  function hush() {
+    maraToken.current += 1;
+    window.speechSynthesis?.cancel();
+    mara.current?.pause();
+  }
+  function playMara() {
+    hush();
+    const token = maraToken.current;
+    const player = mara.current ?? new Audio("/mara-intro.mp4?v=20");
+    mara.current = player;
+    player.playbackRate = 1;
+    player.currentTime = 0;
+    void player.play();
+    window.setTimeout(() => {
+      if (maraToken.current === token) player.pause();
+    }, 12000);
+  }
   return (
     <div className="os-app">
       <header className="os-head">
@@ -180,11 +214,51 @@ export function SettingsApp({ audio, onToggleAudio }: { audio: boolean; onToggle
       <div className="os-settings">
         <article>
           <strong>Geluid</strong>
-          <p>Spraak en signalen van deze omgeving. De set hoor je zodra het geluid aanstaat.</p>
+          <p>Spraak en signalen tijdens het spel.</p>
           <button className="ol-cmd" type="button" onClick={onToggleAudio}>{audio ? "Geluid aan" : "Geluid uit"}</button>
-          <div className="os-sets" role="group" aria-label="Soundset">
+        </article>
+        <article className="os-hear">
+          <strong>Stemmen</strong>
+          <p>KADE spreekt altijd dreigend: laag, traag, met een donkere ondertoon. Helder en Hard zijn de andere stemmen. Mara speelt het begin van haar briefing.</p>
+          <div className="os-sets" role="group" aria-label="Stem van KADE">
+            {voicePresets.map((preset) => (
+              <button key={preset.id} className={preset.id === voiceId ? "on" : ""} type="button" aria-pressed={preset.id === voiceId} onClick={() => { hush(); previewVoice(preset.id); }}>{preset.label}</button>
+            ))}
+            <button type="button" onClick={playMara}>Mara</button>
+          </div>
+          {voices.length > 0 && (
+            <>
+              <h3>Stemmen op dit apparaat</h3>
+              <div className="os-sets" role="group" aria-label="Geïnstalleerde stemmen">
+                {voices.map((voice) => (
+                  <button key={voice.name} type="button" onClick={() => { hush(); previewVoice(voiceId, voice.name); }}>{voice.name}</button>
+                ))}
+              </div>
+            </>
+          )}
+          <h3>Audiofragmenten</h3>
+          <p>Drie klankbeelden voor dezelfde momenten. Tik een toets. De KADE-rij is de hacker.</p>
+          <div className="os-decks">
             {soundSets.map((set) => (
-              <button key={set.id} className={set.id === activeSet ? "on" : ""} type="button" aria-pressed={set.id === activeSet} onClick={() => setSoundSet(set.id)}>{set.label}</button>
+              <section key={set.id} className={`os-deck ${set.id}${set.id === activeSet ? " on" : ""}`}>
+                <header>
+                  <div>
+                    <h3>{set.label}</h3>
+                    <p>{set.id === "bureau" ? "Zacht signaal op de werkvloer." : set.id === "crisis" ? "Scherper. Dit is een alarm." : "Laag, traag en dichtbij."}</p>
+                  </div>
+                  <div className="os-deck-mark">
+                    {set.id === activeSet && <em>Gekozen</em>}
+                    {set.id === "kade" && (
+                      <button className="os-threat" type="button" onClick={() => { hush(); previewKade(); }}>Hoor KADE</button>
+                    )}
+                  </div>
+                </header>
+                <div className="os-keys" role="group" aria-label={`Fragmenten van ${set.label}`}>
+                  {soundFragments.map((fragment) => (
+                    <button key={fragment.id} type="button" onClick={() => { hush(); setSoundSet(set.id, false); previewFragment(set.id, fragment.id); }}>{fragment.label}</button>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         </article>

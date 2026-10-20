@@ -4,10 +4,11 @@ import { lanHosts } from "../net";
 import { allSolved, completedChapters, currentChapterId, scoreBreakdown } from "../scoring";
 import { baseRemainingSec, crisisElapsedSec, inOffice, teamRemainingSec } from "../time";
 import type { AdminSnapshot, PlaySnapshot, Session, Team } from "../types";
-import { chapters, files, puzzles, tokenLabel } from "./content";
+import { chapters, files, puzzleCues, puzzles, tokenLabel } from "./content";
 import { pendingEvents } from "./events";
 import { hintText, rescueHint } from "./hints";
 import { emptyAwareness } from "./awareness";
+import { presenceOf } from "./presence";
 import { emptyStory, lastTransmission, missionReady } from "./story";
 
 const TOTAL = puzzles.length;
@@ -27,6 +28,21 @@ function instructorInbox(team: Team) {
     });
   }
   return notes;
+}
+
+function easyGuide(session: Session, team: Team, chapterId: number) {
+  if ((session.mode ?? "escape") !== "eenvoudig") return null;
+  const story = team.story ?? emptyStory();
+  const puzzle = puzzles.find((item) => item.chapterId === chapterId && !team.solved.includes(item.id) && missionReady(story, team.solved, item.id) === null);
+  if (!puzzle) return null;
+  const cue = puzzleCues[puzzle.id];
+  return {
+    puzzleId: puzzle.id,
+    title: puzzle.title,
+    action: cue?.action ?? "",
+    text: cue?.text ?? puzzle.brief,
+    steps: hintText(puzzle.id, 3),
+  };
 }
 
 function liveScore(session: Session, team: Team, now: number) {
@@ -130,6 +146,7 @@ export function present(session: Session, team: Team, teams: Team[], now: number
     files: files.filter((file) => file.chapter <= chapterId),
     events: pendingEvents(team, chapterId, remaining).map(({ id, title, body, tone }) => ({ id, title, body, tone })),
     inbox: instructorInbox(team),
+    guide: easyGuide(session, team, chapterId),
     leaderboard: ranked.map((item) => ({
       name: item.name,
       score: liveScore(session, item, now).total,
@@ -172,6 +189,11 @@ export async function adminSnapshot(sessionId: string): Promise<AdminSnapshot | 
         penaltySec: team.penaltySec,
         remainingSec: Math.max(0, teamRemainingSec(found.session, team, now)),
         stuck: team.status === "playing" && idle,
+        presence: presenceOf(team.lastSeenAt, now),
+        lastSeenAt: team.lastSeenAt,
+        lastProgressAt: team.lastProgressAt,
+        seenAgeSec: team.lastSeenAt === null ? null : Math.max(0, Math.floor((now - team.lastSeenAt) / 1000)),
+        activityAgeSec: Math.max(0, Math.floor((now - team.lastProgressAt) / 1000)),
         fails: team.fails,
         currentPuzzle: office ? "Kantoor" : open?.title ?? null,
         office,

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { emptyAwareness, gradeDecision, gradeEval, markPrologue, parseMode, pendingStoryDecision, prologueComplete, recordDecision, recordEval, trainingReport } from "../lib/game/awareness";
+import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseAwareness, parseMode, pendingStoryDecision, prologueComplete, recordDecision, recordEval, recordPulse, trainingReport } from "../lib/game/awareness";
+import { mediaFile, musicLevel, sceneVoice } from "../lib/game/media";
+import { presenceOf, thinking } from "../lib/game/presence";
 import { colleaguePost, sources } from "../lib/game/footprint";
 import { grade } from "../lib/game/grade";
 import { hintText, rescueHint } from "../lib/game/hints";
@@ -51,6 +53,7 @@ function team(partial: Partial<Team> = {}): Team {
     finishedAt: null,
     updatedAt: 0,
     lastProgressAt: 0,
+    lastSeenAt: null,
     breachOffsetSec: 0,
     phishReported: false,
     timeAdjustSec: 0,
@@ -517,6 +520,16 @@ test("keuzes worden server-side beoordeeld zonder dubbele score", () => {
   assert.equal(plain.total, withChoice.total);
 });
 
+test("awareness eenvoudig is een eigen variant en laat de andere modi met rust", () => {
+  assert.equal(parseMode("eenvoudig"), "eenvoudig");
+  assert.equal(parseMode("awareness"), "awareness");
+  assert.equal(parseMode("nis2"), "nis2");
+  assert.equal(parseMode("iets-anders"), "escape");
+  assert.equal(includesTraining("eenvoudig"), true);
+  assert.equal(includesTraining("escape"), false);
+  assert.equal(includesTraining("awareness"), true);
+});
+
 test("de NIS2-evaluatie wordt per situatie beoordeeld", () => {
   for (const [id, choice] of [
     ["invoice", "verify"],
@@ -559,6 +572,46 @@ test("een branche maakt het doelwit herkenbaar en laat de antwoorden staan", () 
   const clues = asSector("ministeries", "helix-svc DOCK-244 ROUTE-7 SEAL HX-19 kluis-nacht");
   assert.equal(clues, "helix-svc DOCK-244 ROUTE-7 SEAL HX-19 kluis-nacht");
   assert.equal(asSector("general", "Nexora Day"), "Nexora Day");
+});
+
+test("de meting telt niet mee in de score en oude sessies blijven leesbaar", () => {
+  const old = parseAwareness({ prologue: ["brief"], decisions: [], evals: [] });
+  assert.deepEqual(old.pulse, { before: {}, after: {} });
+  const answers = { mail: "check", public: "hold", supplier: "known", backup: "procedure" };
+  const saved = recordPulse(emptyAwareness(), "before", answers);
+  assert.equal("error" in saved, false);
+  if ("error" in saved) return;
+  const again = recordPulse(saved.state, "before", { ...answers, mail: "open" });
+  assert.equal("error" in again, false);
+  if ("error" in again) return;
+  assert.equal(again.unchanged, true);
+  assert.equal(again.state.pulse.before.mail, "check");
+  const partial = recordPulse(emptyAwareness(), "after", { mail: "check" });
+  assert.equal("error" in partial, true);
+  const report = trainingReport({ team: "A", date: "20-10-2026", mode: "awareness", chaptersDone: 1, hintCount: 0, awareness: saved.state });
+  assert.match(report, /Voorkeursactie bij de start: 4 van 4/);
+  assert.equal(report.includes("certificaat"), true);
+  const scored = scoreBreakdown(session, team({ awareness: saved.state, solved: ["ch1-bays"] }), 1_000_000);
+  const bare = scoreBreakdown(session, team({ solved: ["ch1-bays"] }), 1_000_000);
+  assert.equal(scored.total, bare.total);
+  assert.equal(mediaFile("kade-voice"), null);
+  assert.equal(mediaFile("mara-intro"), "/mara-intro.mp4");
+});
+
+test("een tablet die nadenkt blijft online en een stille tablet wordt offline", () => {
+  const now = 1_000_000;
+  assert.equal(presenceOf(now - 5_000, now), "online");
+  assert.equal(presenceOf(now - 30_000, now), "unstable");
+  assert.equal(presenceOf(now - 60_000, now), "offline");
+  assert.equal(presenceOf(null, now), "offline");
+  assert.equal(thinking("online", "playing", 180), true);
+  assert.equal(thinking("offline", "playing", 180), false);
+  assert.equal(thinking("online", "playing", 30), false);
+  assert.equal(Math.round(musicLevel(40, true) * 1000) / 1000, 0.088);
+  assert.equal(musicLevel(40, false), 0.4);
+  assert.equal(sceneVoice("m1:0"), null);
+  assert.equal(mediaFile("bed-crisis"), null);
+  assert.equal(mediaFile("kade-voice"), null);
 });
 
 test("de verteller houdt een zin lang genoeg aan om hem rustig uit te spreken", () => {

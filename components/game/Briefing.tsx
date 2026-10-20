@@ -7,7 +7,7 @@ import { useSector } from "./SectorSkin";
 
 type Cue = { t: number; text: string };
 
-const VIDEO_SRC = "/mara-intro.mp4";
+const VIDEO_SRC = "/mara-intro.mp4?v=20";
 const POSTER_SRC = "/mara-briefing.jpg";
 const CUE_SRC = "/audio/secure-connect.wav";
 
@@ -193,7 +193,7 @@ export function Briefing({
 
   useEffect(() => {
     let cancel = false;
-    fetch("/mara-intro.json")
+    fetch("/mara-intro.json?v=20")
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { cues?: Cue[] }) => {
         if (!cancel && data.cues?.length) setCues(data.cues);

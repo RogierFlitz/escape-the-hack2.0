@@ -395,7 +395,9 @@ function modeNote(mode: GameMode, sector: Sector) {
     ? "NIS2-training. De koppeling gebruikt de bestaande leerthema's en de vastgelegde keuzes. Dit rapport verandert die vragen niet."
     : mode === "awareness"
       ? "Cyber Awareness. De nadruk ligt op het herkennen van risico's en op wat het team de volgende keer anders kan doen."
-      : "Escape Room. Dit verslag beschrijft het teamresultaat met de gegevens die het spel bewaart.";
+      : mode === "eenvoudig"
+        ? "Awareness eenvoudig. Het team kreeg tijdens de missies een stap-voor-stap begeleiding. De opdrachten en de score zijn dezelfde als in de andere varianten."
+        : "Escape Room. Dit verslag beschrijft het teamresultaat met de gegevens die het spel bewaart.";
   return `${base} ${sectorLine(sector)}`;
 }
 

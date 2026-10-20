@@ -198,7 +198,7 @@ export function ManageBoard({ report }: { report: SessionReport }) {
       <div className="rs-wrap">
         <header className="rs-card">
           <p className="rs-kicker">Managementrapport · {report.session.name}</p>
-          <h1>{report.session.mode === "nis2" ? "NIS2-training" : report.session.mode === "awareness" ? "Cyber Awareness" : "Escape Room"}</h1>
+          <h1>{report.session.mode === "nis2" ? "NIS2-training" : report.session.mode === "awareness" ? "Cyber Awareness" : report.session.mode === "eenvoudig" ? "Awareness eenvoudig" : "Escape Room"}</h1>
           <p>{report.modeNote}</p>
           <p className="rs-muted">{report.disclaimer}</p>
         </header>

@@ -39,6 +39,7 @@ export type Team = {
   finishedAt: number | null;
   updatedAt: number;
   lastProgressAt: number;
+  lastSeenAt: number | null;
   breachOffsetSec: number | null;
   phishReported: boolean;
   timeAdjustSec: number;
@@ -118,6 +119,7 @@ export type PlaySnapshot = {
   files: PlayFile[];
   events: { id: string; title: string; body: string; tone: "alert" | "message" | "glitch" }[];
   inbox: { id: string; puzzle: string; text: string }[];
+  guide: { puzzleId: string; title: string; action: string; text: string; steps: string[] } | null;
   leaderboard: { name: string; score: number; chapter: number; status: TeamStatus }[];
   score: {
     puzzlePoints: number;
@@ -145,6 +147,11 @@ export type AdminTeam = {
   penaltySec: number;
   remainingSec: number;
   stuck: boolean;
+  presence: "online" | "unstable" | "offline";
+  lastSeenAt: number | null;
+  lastProgressAt: number;
+  seenAgeSec: number | null;
+  activityAgeSec: number;
   fails: number;
   currentPuzzle: string | null;
   office: boolean;

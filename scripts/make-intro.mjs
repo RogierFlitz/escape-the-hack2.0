@@ -52,14 +52,14 @@ await tts.setMetadata("nl-NL-FennaNeural", OUTPUT_FORMAT.AUDIO_24KHZ_96KBITRATE_
 await mkdir(work, { recursive: true });
 const parts = [];
 for (let i = 0; i < lines.length; i += 1) {
-  const saved = await tts.toFile(work, lines[i], { rate: "+8%" });
+  const saved = await tts.toFile(work, lines[i], { rate: "-20%" });
   const named = path.join(work, `line-${i}.mp3`);
   await run(ffmpeg, ["-y", "-i", saved.audioFilePath, "-c", "copy", named]);
   parts.push(named);
 }
 tts.close();
 const silence = path.join(work, "gap.mp3");
-await run(ffmpeg, ["-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", "0.22", "-c:a", "libmp3lame", "-q:a", "6", silence]);
+await run(ffmpeg, ["-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", "0.4", "-c:a", "libmp3lame", "-q:a", "6", silence]);
 
 const inputs = [];
 for (let i = 0; i < parts.length; i += 1) {

@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { DemoJumps } from "../home/DemoJumps";
-import { MODE_PLAN, type GameMode } from "@/lib/game/awareness";
+import { GAME_MODES, MODE_PLAN, type GameMode } from "@/lib/game/awareness";
 import { SECTOR_PLAN, SECTORS, type Sector } from "@/lib/game/sector";
+import { thinking, type Presence } from "@/lib/game/presence";
 import type { AdminSnapshot, AdminTeam, Session, SessionRollup } from "@/lib/types";
+import { SoundDesk } from "./SoundDesk";
 import { AdminResults, PlayerResults } from "../results/ResultsApp";
 import "./gcc.css";
 
@@ -31,6 +33,7 @@ function clock(total: number) {
 function modeLabel(mode?: string) {
   if (mode === "awareness") return "Cyber Awareness";
   if (mode === "nis2") return "NIS2 Training Experience";
+  if (mode === "eenvoudig") return "Awareness eenvoudig";
   return "Escape Room";
 }
 
@@ -85,8 +88,60 @@ function teamTone(sessionStatus: string, team: AdminTeam) {
   if (sessionStatus === "paused") return { label: "Gepauzeerd", tone: "warn", link: "Sessie op pauze" };
   if (team.status === "ready") return { label: "Lobby", tone: "wait", link: "Nog niet in het spel" };
   if (team.stuck) return { label: "Aandacht nodig", tone: "warn", link: "Geen voortgang in 5 minuten" };
-  if (team.office) return { label: "Actief", tone: "ok", link: "Verbonden, nog op kantoor" };
-  return { label: "Actief", tone: "ok", link: "Verbonden" };
+  if (team.office) return { label: "Actief", tone: "ok", link: "Nog op kantoor" };
+  return { label: "Actief", tone: "ok", link: "In de missie" };
+}
+
+function presenceLabel(presence: Presence) {
+  if (presence === "online") return "Online";
+  if (presence === "unstable") return "Verbinding instabiel";
+  return "Offline";
+}
+
+function clockTime(at: number | null) {
+  if (at === null) return "nog geen";
+  return new Date(at).toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+const PILOT_CHECKS = [
+  "Geluid op een tablet aan en uit gezet",
+  "Een teamcode opent de lobby",
+  "Alle teams tegelijk gestart",
+  "Pauze en hervatten gecontroleerd",
+  "Extra tijd aan één team gegeven",
+  "Extra tijd aan alle teams gegeven",
+  "Wifi kort uit en weer aan: het team staat op dezelfde opdracht",
+  "Verbinding toont Online terwijl het team nadenkt",
+  "Een hint komt aan op de tablet",
+  "Trainingsmodus toont de voor- en nameting; Escape Room niet",
+  "Rapport en CSV openen met alleen gemeten gegevens",
+  "Sitewachtwoord en instructeurswachtwoord zijn verschillend",
+];
+
+function PilotList() {
+  const [done, setDone] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("eth-pilot-checks") || "[]") as unknown;
+      if (Array.isArray(saved)) setDone(saved.filter((item): item is string => typeof item === "string"));
+    } catch { /* lege lijst */ }
+  }, []);
+  function toggle(item: string) {
+    setDone((current) => {
+      const next = current.includes(item) ? current.filter((line) => line !== item) : [...current, item];
+      localStorage.setItem("eth-pilot-checks", JSON.stringify(next));
+      return next;
+    });
+  }
+  return (
+    <div className="gcc-pilot">
+      <h2>Checklist voor het evenement</h2>
+      <p className="gcc-note">Vink af wat je zelf hebt gecontroleerd. Dit start geen tweede spel en raakt een echte sessie niet.</p>
+      {PILOT_CHECKS.map((item) => (
+        <label key={item}><input type="checkbox" checked={done.includes(item)} onChange={() => toggle(item)} />{item}</label>
+      ))}
+    </div>
+  );
 }
 
 function Icon({ name }: { name: View }) {
@@ -176,6 +231,10 @@ export function AdminApp() {
       setConfigError(data.configured === false ? String(data.error ?? "Beheer is niet geconfigureerd.") : "");
       setReady(true);
     }).catch(() => setReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (window.location.hash === "#instellingen") setView("settings");
   }, []);
 
   useEffect(() => {
@@ -595,8 +654,8 @@ export function AdminApp() {
                 <label>Bedrijfsnaam<input value={client} onChange={(event) => setClient(event.target.value)} placeholder="Bijvoorbeeld Gemeente Havenstad" /></label>
                 <label>Datum<input type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} /></label>
                 <div className="gcc-row">
-                  {(["escape", "awareness", "nis2"] as GameMode[]).map((item) => (
-                    <button key={item} className={`gcc-btn${mode === item ? " primary" : ""}`} type="button" onClick={() => setMode(item)}>{modeLabel(item)}</button>
+                  {GAME_MODES.map((item) => (
+                    <button key={item} className={`gcc-btn${mode === item ? " primary" : ""}`} type="button" onClick={() => { setMode(item); if (item === "eenvoudig") setPenaltyOn(false); }}>{modeLabel(item)}</button>
                   ))}
                 </div>
                 <p>{MODE_PLAN[mode]}</p>
@@ -663,6 +722,7 @@ export function AdminApp() {
             <p className="gcc-kicker">Testcentrum</p>
             <h1>Demo, los van het evenement</h1>
             <div className="gcc-alert">Dit zet alleen het demoteam met code DEMO terug. Een echte speelsessie en de teams daarvan blijven onaangeroerd. In productie blijft de demo-API dicht, tenzij die apart is aangezet.</div>
+            <PilotList />
             <DemoJumps always />
           </section>
         )}
@@ -722,6 +782,7 @@ export function AdminApp() {
         {view === "settings" && (
           <section className="gcc-panel">
             <h1>Instellingen</h1>
+            <SoundDesk />
             <p>Beheer vraagt om het wachtwoord uit de omgeving. In productie is er geen standaardwachtwoord en wordt dat wachtwoord hier niet getoond.</p>
             <p>Pauze geldt voor de hele sessie. Een team apart pauzeren zou de gedeelde klok uit elkaar halen, daarom blijft pauze een sessieactie.</p>
             <p>Het live scherm ververst de open sessie elke 4 seconden. Het dashboard ververst de sessielijst elke 8 seconden.</p>
@@ -906,6 +967,9 @@ function LiveDesk({
                 <span>
                   <strong>{team.name}</strong>
                   <small><span className={`gcc-pill ${state.tone}`}><i />{state.label}</span></small>
+                  <small className={`gcc-link ${team.presence}`}>{presenceLabel(team.presence)}</small>
+                  <small>Verbinding {clockTime(team.lastSeenAt)}</small>
+                  <small>Activiteit {clockTime(team.lastProgressAt)}{thinking(team.presence, team.status, team.activityAgeSec) ? " · team overlegt" : ""}</small>
                   <small>{state.link}</small>
                   <ul className="gcc-facts">
                     <li>Missie {team.chapter}</li>
@@ -937,7 +1001,9 @@ function LiveDesk({
               <TeamNameEditor team={focus} onSave={(name) => onControl("rename", { teamId: focus.id, name })} />
               <div className="gcc-statgrid">
                 <div><small>Status</small><strong>{teamTone(board.session.status, focus).label}</strong></div>
-                <div><small>Verbinding</small><strong>{teamTone(board.session.status, focus).link}</strong></div>
+                <div><small>Verbinding</small><strong className={`gcc-link ${focus.presence}`}>{presenceLabel(focus.presence)}</strong></div>
+                <div><small>Laatste verbinding</small><strong>{clockTime(focus.lastSeenAt)}</strong></div>
+                <div><small>Laatste activiteit</small><strong>{clockTime(focus.lastProgressAt)}{thinking(focus.presence, focus.status, focus.activityAgeSec) ? " · overlegt" : ""}</strong></div>
                 <div><small>Missie</small><strong>{focus.chapter}</strong></div>
                 <div><small>Opdracht</small><strong>{focus.currentPuzzle ?? "Geen open opdracht"}</strong></div>
                 <div><small>Opgelost</small><strong>{focus.solved}/{focus.total}</strong></div>
@@ -1007,8 +1073,8 @@ function SessionEditor({ session, onSave }: { session: Session; onSave: (fields:
       <label>Bedrijfsnaam<input aria-label="Bedrijfsnaam" value={company} onChange={(event) => setCompany(event.target.value)} placeholder="Bijvoorbeeld Gemeente Havenstad" /></label>
       <label>Datum<input aria-label="Datum" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
       <div className="gcc-row">
-        {(["escape", "awareness", "nis2"] as GameMode[]).map((item) => (
-          <button key={item} className={`gcc-btn${playMode === item ? " primary" : ""}`} type="button" onClick={() => setPlayMode(item)}>{modeLabel(item)}</button>
+        {GAME_MODES.map((item) => (
+          <button key={item} className={`gcc-btn${playMode === item ? " primary" : ""}`} type="button" onClick={() => { setPlayMode(item); if (item === "eenvoudig") setPenaltyOnLocal(false); }}>{modeLabel(item)}</button>
         ))}
       </div>
       <div className="gcc-row">

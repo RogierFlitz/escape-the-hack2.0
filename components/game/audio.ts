@@ -1,3 +1,5 @@
+import { readFxVolume } from "./mix";
+
 let ctx: AudioContext | null = null;
 
 const SET_KEY = "eth-sound-set";
@@ -39,16 +41,16 @@ const cues: Record<SoundSetId, Record<string, Note[]>> = {
     lose: [[220, 0.14, "sawtooth", 0.03], [174, 0.16, "sawtooth", 0.028, 0.12], [130, 0.22, "sawtooth", 0.025, 0.26]],
   },
   kade: {
-    click: [[110, 0.05, "sawtooth", 0.03]],
-    alert: [[73, 0.22, "sawtooth", 0.035], [55, 0.28, "square", 0.03, 0.18]],
-    ok: [[196, 0.1, "triangle", 0.035], [247, 0.16, "triangle", 0.03, 0.1]],
-    glitch: [[48, 0.1, "sawtooth", 0.04], [36, 0.14, "square", 0.03, 0.08], [62, 0.08, "sawtooth", 0.025, 0.18]],
-    lock: [[98, 0.08, "square", 0.035], [65, 0.14, "sawtooth", 0.03, 0.08]],
-    incoming: [[146, 0.16, "sawtooth", 0.03], [110, 0.18, "square", 0.028, 0.16], [82, 0.24, "sawtooth", 0.025, 0.34]],
-    secure: [[130, 0.18, "triangle", 0.03], [164, 0.2, "triangle", 0.025, 0.16], [196, 0.24, "triangle", 0.02, 0.34]],
-    message: [[220, 0.08, "triangle", 0.035], [165, 0.12, "sawtooth", 0.025, 0.09]],
-    win: [[110, 0.16, "triangle", 0.03], [165, 0.16, "triangle", 0.03, 0.16], [220, 0.28, "triangle", 0.028, 0.32]],
-    lose: [[55, 0.24, "sawtooth", 0.035], [49, 0.28, "sawtooth", 0.03, 0.2], [41, 0.36, "square", 0.025, 0.42]],
+    click: [[78, 0.07, "square", 0.04]],
+    alert: [[92, 0.18, "sawtooth", 0.04], [55, 0.34, "square", 0.045, 0.16], [42, 0.42, "sawtooth", 0.04, 0.38]],
+    ok: [[146, 0.1, "triangle", 0.03], [110, 0.18, "sawtooth", 0.028, 0.1]],
+    glitch: [[48, 0.08, "sawtooth", 0.05], [34, 0.12, "square", 0.04, 0.06], [61, 0.07, "sawtooth", 0.035, 0.14], [29, 0.16, "square", 0.03, 0.22]],
+    lock: [[70, 0.1, "square", 0.05], [42, 0.22, "sawtooth", 0.04, 0.1]],
+    incoming: [[98, 0.16, "sawtooth", 0.035], [73, 0.2, "square", 0.04, 0.14], [49, 0.28, "sawtooth", 0.04, 0.32], [36, 0.36, "square", 0.03, 0.52]],
+    secure: [[82, 0.2, "triangle", 0.03], [65, 0.26, "sawtooth", 0.028, 0.16], [49, 0.3, "triangle", 0.022, 0.36]],
+    message: [[130, 0.09, "square", 0.035], [87, 0.16, "sawtooth", 0.03, 0.1]],
+    win: [[65, 0.18, "triangle", 0.03], [82, 0.18, "triangle", 0.028, 0.16], [49, 0.4, "sawtooth", 0.03, 0.34]],
+    lose: [[55, 0.3, "sawtooth", 0.045], [46, 0.36, "square", 0.04, 0.22], [34, 0.5, "sawtooth", 0.035, 0.48]],
   },
 };
 
@@ -68,14 +70,42 @@ export function readSoundSet(): SoundSetId {
   return soundSets.some((set) => set.id === saved) ? (saved as SoundSetId) : "bureau";
 }
 
+export const soundFragments = [
+  { id: "click", label: "Tik" },
+  { id: "alert", label: "Alarm" },
+  { id: "ok", label: "Goed" },
+  { id: "glitch", label: "Storing" },
+  { id: "lock", label: "Slot" },
+  { id: "incoming", label: "Binnenkomst" },
+  { id: "secure", label: "Verbinding" },
+  { id: "message", label: "Bericht" },
+  { id: "win", label: "Gewonnen" },
+  { id: "lose", label: "Verloren" },
+] as const;
+
 export function soundSetLabel(id: SoundSetId) {
   return soundSets.find((set) => set.id === id)?.label ?? "Bureau";
 }
 
-export function setSoundSet(id: SoundSetId) {
+const KADE_GROWL = new Set(["alert", "glitch", "lock", "incoming", "lose"]);
+
+export function previewFragment(setId: SoundSetId, cueId: string) {
+  const notes = cues[setId]?.[cueId];
+  if (!notes) return;
+  const audio = context();
+  const run = () => {
+    const louder: Note[] = notes.map(([freq, duration, wave, gain, delay]): Note => [freq, Math.max(duration, 0.08), wave, Math.max(gain, 0.05), delay]);
+    playNotes(louder);
+    if (setId === "kade" && KADE_GROWL.has(cueId)) growl();
+  };
+  if (audio.state === "suspended") void audio.resume().then(run);
+  else run();
+}
+
+export function setSoundSet(id: SoundSetId, preview = true) {
   localStorage.setItem(SET_KEY, id);
   if (typeof window !== "undefined") window.dispatchEvent(new Event("eth-sound-set"));
-  if (soundOn()) playIncoming();
+  if (preview && soundOn()) playIncoming();
 }
 
 function context() {
@@ -84,24 +114,51 @@ function context() {
   return ctx;
 }
 
-function tone(freq: number, duration: number, type: OscillatorType, gain = 0.045, delay = 0) {
-  if (!soundOn()) return;
+function playNotes(notes: Note[]) {
   const audio = context();
-  const osc = audio.createOscillator();
+  for (const [freq, duration, wave, gain, delay] of notes) {
+    const osc = audio.createOscillator();
+    const amp = audio.createGain();
+    osc.type = wave;
+    osc.frequency.value = freq;
+    osc.connect(amp);
+    amp.connect(audio.destination);
+    const level = readFxVolume() / 100;
+    const start = audio.currentTime + (delay ?? 0);
+    amp.gain.setValueAtTime(gain * level, start);
+    amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.start(start);
+    osc.stop(start + duration + 0.02);
+  }
+}
+
+function growl() {
+  const audio = context();
+  const length = Math.floor(audio.sampleRate * 0.45);
+  const noise = audio.createBuffer(1, length, audio.sampleRate);
+  const data = noise.getChannelData(0);
+  for (let i = 0; i < length; i += 1) data[i] = Math.random() * 2 - 1;
+  const source = audio.createBufferSource();
+  const filter = audio.createBiquadFilter();
   const amp = audio.createGain();
-  osc.type = type;
-  osc.frequency.value = freq;
-  osc.connect(amp);
+  source.buffer = noise;
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(180, audio.currentTime);
+  filter.frequency.exponentialRampToValueAtTime(40, audio.currentTime + 0.4);
+  source.connect(filter);
+  filter.connect(amp);
   amp.connect(audio.destination);
-  const start = audio.currentTime + delay;
-  amp.gain.setValueAtTime(gain, start);
-  amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-  osc.start(start);
-  osc.stop(start + duration + 0.02);
+  amp.gain.setValueAtTime(0.05 * (readFxVolume() / 100), audio.currentTime);
+  amp.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.42);
+  source.start();
+  source.stop(audio.currentTime + 0.45);
 }
 
 function burst(name: string) {
-  for (const [freq, duration, wave, gain, delay] of cues[readSoundSet()][name]) tone(freq, duration, wave, gain, delay ?? 0);
+  if (!soundOn()) return;
+  const set = readSoundSet();
+  playNotes(cues[set][name]);
+  if (set === "kade" && KADE_GROWL.has(name)) growl();
 }
 
 export function playClick() {

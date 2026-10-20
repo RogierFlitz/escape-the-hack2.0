@@ -45,6 +45,7 @@ function team(partial: Partial<Team> = {}): Team {
     finishedAt: null,
     updatedAt: 1,
     lastProgressAt: 1,
+    lastSeenAt: null,
     breachOffsetSec: 30,
     phishReported: false,
     timeAdjustSec: 0,

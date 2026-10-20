@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { asSector } from "@/lib/game/sector";
 import { playGlitch, playIncoming, playLock } from "./audio";
-import { narrate } from "./narrate";
+import { narrate, stopNarration } from "./narrate";
 import { speech } from "@/lib/game/story";
 import { useSector } from "./SectorSkin";
 
@@ -41,8 +41,8 @@ function clock(total: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function speak(line: string, audio: boolean, onDone?: () => void) {
-  narrate(line, audio, onDone);
+function speak(line: string, audio: boolean, onDone?: () => void, threat = false) {
+  narrate(line, audio, onDone, threat);
 }
 
 function toggleFullscreen() {
@@ -142,7 +142,7 @@ export function AttackCine({
       speak(text, true, () => {
         if (!alive || line >= lines.length - 1) return;
         setLine((value) => value + 1);
-      });
+      }, true);
       return () => {
         alive = false;
       };
@@ -151,6 +151,8 @@ export function AttackCine({
     const timer = window.setTimeout(() => setLine((value) => value + 1), 2800);
     return () => window.clearTimeout(timer);
   }, [phase, line, audio, lines, replay, sector]);
+
+  useEffect(() => () => stopNarration(), []);
 
   useEffect(() => {
     if (phase !== "nora") return;

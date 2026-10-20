@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { notePresence } from "@/lib/db/store";
 import { openDemo } from "@/lib/game/actions";
 import { DEMO_CODE, demoToolsEnabled } from "@/lib/game/demo";
 import { playSnapshot } from "@/lib/game/snapshot";
@@ -23,5 +24,6 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
     }
   }
   if (!snapshot) return unknownCode();
+  await notePresence(code).catch(() => undefined);
   return NextResponse.json(snapshot);
 }

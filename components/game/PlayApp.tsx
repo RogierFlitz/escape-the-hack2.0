@@ -1,15 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { emptyAwareness, gradeDecision, includesTraining, pendingStoryDecision, prologueComplete, trainingReport } from "@/lib/game/awareness";
-import { puzzleCues } from "@/lib/game/content";
+import { emptyAwareness, gradeDecision, includesTraining, pendingStoryDecision, prologueComplete, pulseComplete, trainingReport } from "@/lib/game/awareness";
+import { chapters, puzzleCues } from "@/lib/game/content";
 import { asSector, sectorLine } from "@/lib/game/sector";
 import { SectorProvider, useSector } from "./SectorSkin";
 import { dossier, emptyStory, failLines, missionTitle, nextBeat, noraNote, speech, winLines } from "@/lib/game/story";
 import { savedOfficePieces } from "./Intranet";
 import type { PlayFile, PlaySnapshot } from "@/lib/types";
 import { playAlert, playClick, playFinale, playMessage, playOk, setSound, soundOn } from "./audio";
-import { SoundSetButton } from "./SoundSetButton";
+import { setMusic, stopMusic } from "./mix";
+import { EasyGuide } from "./EasyGuide";
+import { MissionSting } from "./MissionSting";
+import { PulseBoard } from "./Pulse";
+import { SoundSetButton, VoiceButton } from "./SoundSetButton";
 import { DecisionCard, DecisionHold, EvalBoard } from "./AwarenessBeats";
 import { KadeTransmission, NoraStrip } from "./Kade";
 import { OfficeDesk } from "./OfficeDesk";
@@ -47,6 +51,7 @@ export function PlayApp({ code }: { code: string }) {
   const [shaking, setShaking] = useState(false);
   const [feedback, setFeedback] = useState<{ id: string; text: string } | null>(null);
   const [originTick, setOriginTick] = useState(0);
+  const [sting, setSting] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
   const [dismissedHints, setDismissedHints] = useState<string[]>([]);
   const [inboxReady, setInboxReady] = useState(false);
@@ -179,10 +184,41 @@ export function PlayApp({ code }: { code: string }) {
   }, [event]);
 
   useEffect(() => {
+    if (!audio) {
+      stopMusic();
+      return;
+    }
+    if (snap?.finished?.outcome === "completed") setMusic("finale");
+    else if (snap?.phase === "crisis") setMusic("crisis");
+    else if (snap?.phase === "office") setMusic("office");
+    else stopMusic();
+  }, [audio, snap?.finished, snap?.phase]);
+
+  useEffect(() => {
+    if (!snap || snap.phase !== "crisis" || snap.finished) return;
+    const currentStory = snap.story ?? emptyStory();
+    const solved = snap.puzzles.filter((item) => item.solved).map((item) => item.id);
+    const currentBeat = nextBeat(currentStory, solved, snap.team.phishReported);
+    if (currentBeat.kind === "transmission" || currentBeat.kind === "discovery") return;
+    const id = currentBeat.kind === "social" ? 1 : currentBeat.kind === "backup" ? 4 : currentBeat.kind === "finale" ? 6 : currentBeat.kind === "puzzle" ? (snap.puzzles.find((item) => item.id === currentBeat.puzzleId)?.chapterId ?? snap.chapter.id) : snap.chapter.id;
+    const key = `eth-sting-${code}`;
+    const prev = sessionStorage.getItem(key);
+    if (prev === null) {
+      sessionStorage.setItem(key, String(id));
+      return;
+    }
+    if (prev !== String(id)) {
+      sessionStorage.setItem(key, String(id));
+      setSting(id);
+    }
+  }, [code, snap]);
+
+  useEffect(() => {
     if (!snap?.finished || playedEnd.current) return;
+    if (includesTraining(snap.session.mode ?? "escape") && !pulseComplete(snap.awareness?.pulse?.after)) return;
     playedEnd.current = true;
     playFinale(snap.finished.outcome === "completed");
-  }, [snap?.finished]);
+  }, [snap?.finished, snap?.awareness, snap?.session.mode]);
 
   async function send(path: string, body: unknown) {
     playClick();
@@ -211,7 +247,7 @@ export function PlayApp({ code }: { code: string }) {
         setNote("Extra hint staat bij de opdracht.");
         return true;
       }
-      if (path === "decision" || path === "eval" || path === "origin") return true;
+      if (path === "decision" || path === "eval" || path === "origin" || path === "pulse") return true;
       const solvedNow = (data.progress?.solved ?? data.snapshot?.progress?.solved ?? before) > before;
       const puzzleId = body && typeof body === "object" && "puzzleId" in body ? String((body as { puzzleId: unknown }).puzzleId) : "";
       const early = puzzleId.startsWith("ch1-") || puzzleId.startsWith("ch2-") || puzzleId.startsWith("ch3-") || puzzleId.startsWith("ch4-") || puzzleId.startsWith("ch5-") || puzzleId.startsWith("ch6-");
@@ -325,6 +361,7 @@ export function PlayApp({ code }: { code: string }) {
   const training = includesTraining(gameMode);
   const localOrigin = originTick >= 0 && typeof window !== "undefined" ? sessionStorage.getItem(`eth-origin-${code}`) : null;
   const showOrigin = training && snap.phase === "office" && !prologueComplete(awareness) && localOrigin !== "hours" && localOrigin !== "skip";
+  const showPulseBefore = showOrigin && awareness.prologue.length === 0 && localOrigin !== "skip" && !pulseComplete(awareness.pulse?.before);
   const gate = pendingStoryDecision(gameMode, story.scenes, awareness);
   const held = feedback && (feedback.id === "escalate" || feedback.id === "supplier") && !gate ? feedback : null;
   const priority = awareness.decisions.find((item) => item.id === "priority");
@@ -445,6 +482,7 @@ export function PlayApp({ code }: { code: string }) {
             <div className={`mono ${snap.phase === "office" ? "timer" : timerClass}`}>{clockLabel}</div>
             <button className="icon-btn" type="button" onClick={() => { const next = !audio; setAudio(next); setSound(next); }}>{audio ? "geluid aan" : "geluid uit"}</button>
             {audio && <SoundSetButton className="icon-btn" />}
+            <VoiceButton className="icon-btn" />
             <button className="icon-btn" type="button" onClick={() => {
               if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
               else void document.exitFullscreen?.();
@@ -453,6 +491,7 @@ export function PlayApp({ code }: { code: string }) {
         )}
       </header>
       {offline && <div className="offline" style={{ padding: "0 12px" }}>Verbinding verbroken. Voortgang blijft op dit toestel staan.</div>}
+      {snap.guide && stagePuzzle?.id === snap.guide.puzzleId && <EasyGuide guide={snap.guide} />}
 
       {snap.team.status === "ready" && (
         <section className="lobby" style={{ padding: 24 }}>
@@ -463,7 +502,11 @@ export function PlayApp({ code }: { code: string }) {
         </section>
       )}
 
-      {showOrigin && (
+      {showPulseBefore && (
+        <PulseBoard when="before" busy={busy} onSubmit={(answers) => void send("pulse", { when: "before", answers })} />
+      )}
+
+      {showOrigin && !showPulseBefore && (
         <OriginPrologue
           code={code}
           seen={awareness.prologue}
@@ -473,7 +516,7 @@ export function PlayApp({ code }: { code: string }) {
         />
       )}
 
-      {snap.phase === "office" && !showOrigin && (
+      {snap.phase === "office" && !showOrigin && !showPulseBefore && (
         <OfficeDesk
           teamCode={code}
           busy={busy}
@@ -524,6 +567,14 @@ export function PlayApp({ code }: { code: string }) {
               </div>
             </aside>
             <section className={`panel stage${shaking ? " shake" : ""}${event?.tone === "glitch" ? " glitch" : ""}`}>
+              {sting !== null && (
+                <MissionSting
+                  title={chapters.find((item) => item.id === sting)?.title ?? missionTitle(sting)}
+                  subtitle={chapters.find((item) => item.id === sting)?.subtitle ?? ""}
+                  audio={audio}
+                  onDone={() => setSting(null)}
+                />
+              )}
               {!spoken && stagePuzzle && stagePuzzle.chapterId > 6 && <NoraStrip text={noraNote(missionId)} />}
               {gate ? (
                 <DecisionCard id={gate} busy={busy} feedback={feedback?.id === gate ? feedback.text : null} onSubmit={(choice) => void send("decision", { id: gate, choice })} />
@@ -682,13 +733,19 @@ export function PlayApp({ code }: { code: string }) {
       }} />}
       {evalOpen && snap.finished && <PlayerResults code={code} onClose={() => setEvalOpen(false)} />}
 
-      {snap.finished?.outcome === "completed" && !reportOpen && (
+      {training && snap.finished && !pulseComplete(awareness.pulse?.after) && (
+        <div className="ending">
+          <PulseBoard when="after" busy={busy} onSubmit={(answers) => void send("pulse", { when: "after", answers })} />
+        </div>
+      )}
+
+      {snap.finished?.outcome === "completed" && !reportOpen && !(training && !pulseComplete(awareness.pulse?.after)) && (
         <div className="ending win">
           <RestoreCine score={snap.team.score} onDone={() => setReportOpen(true)} />
         </div>
       )}
 
-      {snap.finished && (snap.finished.outcome !== "completed" || reportOpen) && (
+      {snap.finished && (snap.finished.outcome !== "completed" || reportOpen) && !(training && !pulseComplete(awareness.pulse?.after)) && (
         <div className={`ending ${snap.finished.outcome === "completed" ? "win" : "fail"}`}>
           <div className="panel stack sd-report">
             <p className="kicker mono">{snap.team.name}</p>
@@ -842,6 +899,7 @@ function MissionOneBar({
         )}
         <button className="m1-tool" type="button" onClick={onAudio}>{audio ? "Geluid aan" : "Geluid uit"}</button>
         {audio && <SoundSetButton className="m1-tool" />}
+        <VoiceButton className="m1-tool" />
         <button className="m1-tool" type="button" onClick={onFull}>Volledig scherm</button>
         <button className="m1-tool" type="button" aria-pressed={rail === "mission"} onClick={() => onRail("mission")}>Dossier</button>
         <button className="m1-tool" type="button" aria-pressed={rail === "evidence"} onClick={() => onRail("evidence")}>Bewijs</button>

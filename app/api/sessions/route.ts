@@ -43,13 +43,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: "Tijdstraf per hint moet tussen 0 en 300 seconden liggen." }, { status: 400 });
   }
   try {
+    const mode = parseMode(body.mode);
     const created = await createSession({
       name: clip(body.name, 60) || "Escape the Hack",
       durationSec: Math.round(durationMin * 60),
-      hintPenalty: body.hintPenalty !== false,
+      hintPenalty: mode === "eenvoudig" ? false : body.hintPenalty !== false,
       hintPenaltySec: Math.round(penalty),
       teamNames: teams,
-      mode: parseMode(body.mode),
+      mode,
       sector: parseSector(body.sector),
       clientName: clip(body.client, 80),
       eventDate: clip(body.eventDate, 10),

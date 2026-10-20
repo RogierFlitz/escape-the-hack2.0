@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { PHISH_AFTER_MS, phishDue, phishReady } from "@/lib/game/office";
 import { Briefing } from "./Briefing";
-import { IntranetBody, type IntranetPage } from "./Intranet";
+import { IntranetBody, type IntranetPage, type Suspicion } from "./Intranet";
 import { OS_APPS, type OsAppId } from "./office/Center";
 import { OfficeSuite } from "./office/Suite";
 
@@ -30,7 +30,7 @@ function readOffice(teamCode: string) {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(`eth-office-${teamCode}`);
-    return raw ? JSON.parse(raw) as { desk?: string; mailOpen?: boolean; briefed?: boolean; seen?: string[]; dossier?: string[]; noticed?: boolean; readMail?: string[]; startedAt?: number } : null;
+    return raw ? JSON.parse(raw) as { desk?: string; mailOpen?: boolean; briefed?: boolean; seen?: string[]; dossier?: string[]; marks?: Record<string, Suspicion>; noticed?: boolean; readMail?: string[]; startedAt?: number } : null;
   } catch {
     return null;
   }
@@ -238,6 +238,7 @@ export function OfficeDesk({
   const [reading, setReading] = useState<string | null>(null);
   const [seen, setSeen] = useState<string[]>([]);
   const [dossier, setDossier] = useState<string[]>([]);
+  const [marks, setMarks] = useState<Record<string, Suspicion>>({});
   const [readMail, setReadMail] = useState<string[]>([]);
   const [noticed, setNoticed] = useState(false);
   const [grant, setGrant] = useState(false);
@@ -260,6 +261,7 @@ export function OfficeDesk({
     setReadMail(read);
     if (saved?.seen) setSeen(saved.seen);
     if (saved?.dossier) setDossier(saved.dossier);
+    if (saved?.marks) setMarks(saved.marks);
     if (saved?.noticed) setNoticed(true);
     if (saved?.briefed) setBriefed(true);
     if (typeof saved?.startedAt === "number") setStartedAt(saved.startedAt);
@@ -268,8 +270,8 @@ export function OfficeDesk({
 
   useEffect(() => {
     if (!restored) return;
-    localStorage.setItem(`eth-office-${teamCode}`, JSON.stringify({ desk: app, mailOpen, briefed, seen, dossier, noticed, readMail, startedAt }));
-  }, [restored, teamCode, app, mailOpen, briefed, seen, dossier, noticed, readMail, startedAt]);
+    localStorage.setItem(`eth-office-${teamCode}`, JSON.stringify({ desk: app, mailOpen, briefed, seen, dossier, marks, noticed, readMail, startedAt }));
+  }, [restored, teamCode, app, mailOpen, briefed, seen, dossier, marks, noticed, readMail, startedAt]);
 
   useEffect(() => {
     if (!restored || !briefed) return;
@@ -322,6 +324,16 @@ export function OfficeDesk({
   }
   function pin(id: string) {
     setDossier((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    setMarks((current) => {
+      if (!current[id]) return current;
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  }
+  function mark(id: string, verdict: Suspicion) {
+    setDossier((current) => current.includes(id) ? current : [...current, id]);
+    setMarks((current) => ({ ...current, [id]: verdict }));
   }
   function openApp(id: AppId, piece?: string | null) {
     setApp(id);
@@ -363,6 +375,7 @@ export function OfficeDesk({
     busy,
     openMail: reading,
     dossier,
+    marks,
     readMail,
     onOpenMail: (id: string | null) => {
       setReading(id);
@@ -370,6 +383,7 @@ export function OfficeDesk({
     },
     onSeen: see,
     onPin: pin,
+    onMark: mark,
     onRead: (id: string) => setReadMail((current) => current.includes(id) ? current : [...current, id]),
     onBreach,
   };

@@ -7,7 +7,7 @@ import { puzzles } from "./content";
 import { grade } from "./grade";
 import { hintText, rescueHint } from "./hints";
 import { DEMO_CODE, demoProgress, type DemoStop } from "./demo";
-import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, recordDecision, recordEval } from "./awareness";
+import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, recordDecision, recordEval, recordPulse, type PulseWhen } from "./awareness";
 import { applyStory, emptyStory, lastTransmission, missionReady, nextBeat } from "./story";
 import { parseSector } from "./sector";
 import type { StoryInput, StoryState } from "./story";
@@ -107,6 +107,20 @@ export async function takeHint(code: string, puzzleId: string, level?: number) {
     team.hints = { ...team.hints, [puzzleId]: shown + 1 };
     if (session.hintPenalty) team.penaltySec += session.hintPenaltySec;
     return { team };
+  });
+}
+
+export async function savePulse(code: string, when: PulseWhen, answers: Record<string, string>) {
+  return mutate(code, (session, team) => {
+    if (!includesTraining(session.mode ?? "escape")) return { error: "Deze sessie heeft geen meting." };
+    if (session.status === "draft") return { error: "De instructeur heeft de werkdag nog niet geopend." };
+    const finished = team.status === "completed" || team.status === "failed";
+    if (when === "before" && finished) return { error: "De meting aan het begin is voorbij." };
+    if (when === "after" && !finished) return { error: "De meting aan het eind volgt na het spel." };
+    const next = recordPulse(team.awareness ?? emptyAwareness(), when, answers);
+    if ("error" in next) return next;
+    team.awareness = next.state;
+    return { team, note: next.unchanged ? "Deze meting staat al vast." : "Meting vastgelegd." };
   });
 }
 

@@ -14,15 +14,19 @@ export type Piece = {
   excerpt: string;
 };
 
+export type Suspicion = "verdacht" | "veilig";
+
 export type Investigation = {
   ready: boolean;
   busy: boolean;
   openMail: string | null;
   dossier: string[];
+  marks: Record<string, Suspicion>;
   readMail: string[];
   onOpenMail: (id: string | null) => void;
   onSeen: (id: string) => void;
   onPin: (id: string) => void;
+  onMark: (id: string, verdict: Suspicion) => void;
   onRead: (id: string) => void;
   onBreach: (reported: boolean) => void;
 };
@@ -575,11 +579,26 @@ export function IntranetBody({
 }
 
 export function Pin({ investigation, id, label = "Bewaar in dossier", savedLabel = "Bewaard in dossier" }: { investigation: Investigation; id: string; label?: string; savedLabel?: string }) {
+  if (label === "Bewaar in dossier") return <ReportMark investigation={investigation} id={id} />;
   const saved = investigation.dossier.includes(id);
   return (
     <button className="nx-pin" type="button" onClick={() => investigation.onPin(id)}>
       {saved ? savedLabel : label}
     </button>
+  );
+}
+
+export function ReportMark({ investigation, id }: { investigation: Investigation; id: string }) {
+  const verdict = investigation.marks[id];
+  return (
+    <div className="ol-actions" role="group" aria-label="Melding">
+      <button className={`ol-cmd ol-report${verdict === "verdacht" ? " on" : ""}`} type="button" aria-pressed={verdict === "verdacht"} onClick={() => investigation.onMark(id, "verdacht")}>
+        {verdict === "verdacht" ? "Gemeld als verdacht" : "Meld als verdacht"}
+      </button>
+      <button className={`ol-cmd ol-clear${verdict === "veilig" ? " on" : ""}`} type="button" aria-pressed={verdict === "veilig"} onClick={() => investigation.onMark(id, "veilig")}>
+        {verdict === "veilig" ? "Gemeld als niet verdacht" : "Meld als niet verdacht"}
+      </button>
+    </div>
   );
 }
 
@@ -734,7 +753,7 @@ function Mailbox({ investigation }: { investigation: Investigation }) {
               {open.id === "phish" ? (
                 <>
                   <button className="ol-cmd ol-report" type="button" disabled={investigation.busy} onClick={() => investigation.onBreach(true)}>Meld als verdacht</button>
-                  <button className="ol-cmd" type="button" disabled={investigation.busy} onClick={() => investigation.onBreach(false)}>Bijlage openen</button>
+                  <button className="ol-cmd ol-clear" type="button" disabled={investigation.busy} onClick={() => investigation.onBreach(false)}>Meld als niet verdacht</button>
                 </>
               ) : (
                 <Pin investigation={investigation} id={open.id} />
@@ -935,7 +954,7 @@ function Downloads({ investigation, focusId }: { investigation: Investigation; f
               <p className="nx-kicker">Nexora</p>
               <h2>{open.title}</h2>
               <p>{open.body}</p>
-              <Pin investigation={investigation} id={open.id} label="Koppelen aan dossier" savedLabel="Gekoppeld aan dossier" />
+              <Pin investigation={investigation} id={open.id} />
             </>
           ) : (
             <p className="ol-empty">Geen document.</p>
@@ -1264,7 +1283,7 @@ function Dossier({
           </label>
         </div>
         {items.length === 0 ? (
-          <p className="dos-empty">Nog niets bewaard. Open een mail, document of relatie en kies Koppelen aan dossier.</p>
+          <p className="dos-empty">Nog niets gemeld. Open een mail, bericht of ticket en kies Meld als verdacht of Meld als niet verdacht.</p>
         ) : shown.length === 0 ? (
           <p className="dos-empty">Niets in deze groep.</p>
         ) : (
@@ -1284,6 +1303,7 @@ function Dossier({
                       {kind === "E-mails" ? <time>{item.when}</time> : null}
                     </em>
                     <p>{item.excerpt}</p>
+                    {investigation.marks[item.id] === "verdacht" ? <b className="dos-flag bad">Verdacht</b> : investigation.marks[item.id] === "veilig" ? <b className="dos-flag ok">Niet verdacht</b> : null}
                   </div>
                   <div className="dos-actions">
                     <button type="button" onClick={() => onOpenSource?.(item.id)}>Bron openen</button>

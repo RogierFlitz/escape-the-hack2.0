@@ -1,4 +1,6 @@
-export type GameMode = "escape" | "awareness" | "nis2";
+export type GameMode = "escape" | "awareness" | "nis2" | "eenvoudig";
+
+export const GAME_MODES: GameMode[] = ["escape", "awareness", "nis2", "eenvoudig"];
 
 export const PROLOGUE_SCENES = ["brief", "title", "ghost", "osint", "human", "breach", "market", "hours"] as const;
 export type PrologueScene = (typeof PROLOGUE_SCENES)[number];
@@ -14,7 +16,49 @@ export type AwarenessState = {
   prologue: string[];
   decisions: DecisionRecord[];
   evals: DecisionRecord[];
+  pulse: { before: Record<string, string>; after: Record<string, string> };
 };
+
+export const PULSE = [
+  {
+    id: "mail",
+    prompt: "Een bekende naam vraagt per mail om een bestand te openen. Wat doe je eerst?",
+    choices: [
+      { id: "check", label: "Controleren via een kanaal dat je al kent" },
+      { id: "open", label: "De bijlage openen, de naam is bekend" },
+    ],
+    preferred: "check",
+  },
+  {
+    id: "public",
+    prompt: "Een collega wil de planning en een badgefoto openbaar delen.",
+    choices: [
+      { id: "hold", label: "Dat niet delen, ook niet als het feestelijk oogt" },
+      { id: "post", label: "Het mag, het is geen wachtwoord" },
+    ],
+    preferred: "hold",
+  },
+  {
+    id: "supplier",
+    prompt: "Een leverancier vraagt om een extra account.",
+    choices: [
+      { id: "known", label: "Alleen via het bekende contact, met beperkte rechten" },
+      { id: "grant", label: "Het account meteen aanmaken" },
+    ],
+    preferred: "known",
+  },
+  {
+    id: "backup",
+    prompt: "Bestanden zijn onbruikbaar. Iemand stuurt een onbekend herstelprogramma.",
+    choices: [
+      { id: "procedure", label: "De incidentprocedure volgen en het programma niet starten" },
+      { id: "run", label: "Het programma starten om tijd te winnen" },
+    ],
+    preferred: "procedure",
+  },
+] as const;
+
+export type PulseWhen = "before" | "after";
 
 export type Grade = {
   id: string;
@@ -61,6 +105,7 @@ export const MODE_PLAN: Record<GameMode, string> = {
   escape: "Escape Room: ongeveer 60 minuten spel. Plantijd, geen tweede klok.",
   awareness: "Cyber Awareness: briefing, proloog en drie keuzes. De crisis-klok start pas na NORA.",
   nis2: "NIS2-training: ongeveer 75 minuten inclusief nabespreking. Plantijd, geen tweede klok. De spelklok blijft de duur die je hier invult.",
+  eenvoudig: "Awareness eenvoudig: dezelfde proloog en keuzes, met een stap-voor-stap begeleiding tijdens de missies. De crisis-klok start pas na NORA. Het huidige spel blijft ongewijzigd.",
 };
 
 const ESCALATE_OK = `Juist. Escaleer intern naar de verantwoordelijke of het incidentteam. Medewerkers beslissen een externe melding niet zelf. ${LEGAL_NOTE}`;
@@ -121,16 +166,51 @@ export const MISSION_LEARN = [
 ];
 
 export function parseMode(value: unknown): GameMode {
-  if (value === "awareness" || value === "nis2") return value;
+  if (value === "awareness" || value === "nis2" || value === "eenvoudig") return value;
   return "escape";
 }
 
 export function includesTraining(mode: GameMode) {
-  return mode === "awareness" || mode === "nis2";
+  return mode === "awareness" || mode === "nis2" || mode === "eenvoudig";
+}
+
+export function emptyPulse(): AwarenessState["pulse"] {
+  return { before: {}, after: {} };
 }
 
 export function emptyAwareness(): AwarenessState {
-  return { prologue: [], decisions: [], evals: [] };
+  return { prologue: [], decisions: [], evals: [], pulse: emptyPulse() };
+}
+
+function readPulseMap(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const item of PULSE) {
+    const choice = (value as Record<string, unknown>)[item.id];
+    if (typeof choice === "string" && item.choices.some((option) => option.id === choice)) out[item.id] = choice;
+  }
+  return out;
+}
+
+export function pulseComplete(map: Record<string, string> | undefined) {
+  return PULSE.every((item) => typeof map?.[item.id] === "string");
+}
+
+export function pulseChoiceLabel(questionId: string, choiceId: string) {
+  const question = PULSE.find((item) => item.id === questionId);
+  return question?.choices.find((item) => item.id === choiceId)?.label ?? "niet vastgelegd";
+}
+
+export function recordPulse(state: AwarenessState, when: PulseWhen, answers: Record<string, string>): { state: AwarenessState; unchanged: boolean } | { error: string } {
+  const current = state.pulse ?? emptyPulse();
+  if (pulseComplete(current[when])) return { state: { ...state, pulse: current }, unchanged: true };
+  const next: Record<string, string> = {};
+  for (const item of PULSE) {
+    const choice = answers[item.id];
+    if (!item.choices.some((option) => option.id === choice)) return { error: "De meting is nog niet compleet." };
+    next[item.id] = choice;
+  }
+  return { state: { ...state, pulse: { ...current, [when]: next } }, unchanged: false };
 }
 
 export function parseAwareness(value: unknown): AwarenessState {
@@ -150,10 +230,12 @@ export function parseAwareness(value: unknown): AwarenessState {
     });
   };
   const known = new Set<string>(PROLOGUE_SCENES);
+  const pulseRaw = raw.pulse && typeof raw.pulse === "object" ? raw.pulse as { before?: unknown; after?: unknown } : {};
   return {
     prologue: Array.isArray(raw.prologue) ? raw.prologue.filter((item): item is string => typeof item === "string" && known.has(item)) : [],
     decisions: records(raw.decisions),
     evals: records(raw.evals),
+    pulse: { before: readPulseMap(pulseRaw.before), after: readPulseMap(pulseRaw.after) },
   };
 }
 
@@ -400,7 +482,7 @@ export function trainingReport(input: {
     "Cybersecurity-awareness-training met NIS2-gerelateerde leerdoelen.",
     `Team: ${input.team}`,
     `Datum: ${input.date}`,
-    `Modus: ${input.mode === "nis2" ? "NIS2 Training Experience" : input.mode === "awareness" ? "Cyber Awareness" : "Escape Room"}`,
+    `Modus: ${input.mode === "nis2" ? "NIS2 Training Experience" : input.mode === "awareness" ? "Cyber Awareness" : input.mode === "eenvoudig" ? "Awareness eenvoudig" : "Escape Room"}`,
     `Branche: ${input.sector === "ministeries" ? "Ministeries" : input.sector === "gemeenten" ? "Gemeenten" : "Algemeen"}`,
     "Dit rapport gaat over het team. Het doet geen uitspraak over wat een persoon weet. Dit is geen certificaat en geen oordeel dat de organisatie aan de Cyberbeveiligingswet voldoet.",
     "",
@@ -422,6 +504,24 @@ export function trainingReport(input: {
       const row = input.awareness.evals.find((item) => item.id === id);
       lines.push(`- ${id}: ${row?.correct ? "juist" : "nog niet juist"} (${row?.attempts ?? 0})`);
     }
+  }
+  const before = input.awareness.pulse?.before ?? {};
+  const after = input.awareness.pulse?.after ?? {};
+  if (pulseComplete(before) || pulseComplete(after)) {
+    lines.push("", "Meting aan het begin en aan het eind. Dit telt niet mee in de score.");
+    let beforePreferred = 0;
+    let afterPreferred = 0;
+    for (const item of PULSE) {
+      const start = before[item.id];
+      const end = after[item.id];
+      if (start === item.preferred) beforePreferred += 1;
+      if (end === item.preferred) afterPreferred += 1;
+      lines.push(`- ${item.prompt}`);
+      lines.push(`  Begin: ${start ? pulseChoiceLabel(item.id, start) : "niet vastgelegd"}`);
+      lines.push(`  Eind: ${end ? pulseChoiceLabel(item.id, end) : "niet vastgelegd"}`);
+    }
+    if (pulseComplete(before)) lines.push(`Voorkeursactie bij de start: ${beforePreferred} van ${PULSE.length}.`);
+    if (pulseComplete(after)) lines.push(`Voorkeursactie aan het eind: ${afterPreferred} van ${PULSE.length}.`);
   }
   lines.push("", `Hints: ${input.hintCount}`, "", "Verbeterpunten:");
   const gaps: string[] = [];

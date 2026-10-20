@@ -152,7 +152,7 @@ export function OriginPrologue({
         return;
       }
       if (scene === "ghost" || scene === "osint" || scene === "breach") setHeard(scene);
-    });
+    }, scene === "ghost");
     return () => {
       alive = false;
     };
