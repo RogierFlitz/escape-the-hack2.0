@@ -9,6 +9,7 @@ import { dossier, emptyStory, failLines, missionTitle, nextBeat, noraNote, speec
 import { savedOfficePieces } from "./Intranet";
 import type { PlayFile, PlaySnapshot } from "@/lib/types";
 import { playAlert, playClick, playFinale, playMessage, playOk, setSound, soundOn } from "./audio";
+import { SoundSetButton } from "./SoundSetButton";
 import { DecisionCard, DecisionHold, EvalBoard } from "./AwarenessBeats";
 import { KadeTransmission, NoraStrip } from "./Kade";
 import { OfficeDesk } from "./OfficeDesk";
@@ -443,6 +444,7 @@ export function PlayApp({ code }: { code: string }) {
             )}
             <div className={`mono ${snap.phase === "office" ? "timer" : timerClass}`}>{clockLabel}</div>
             <button className="icon-btn" type="button" onClick={() => { const next = !audio; setAudio(next); setSound(next); }}>{audio ? "geluid aan" : "geluid uit"}</button>
+            {audio && <SoundSetButton className="icon-btn" />}
             <button className="icon-btn" type="button" onClick={() => {
               if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
               else void document.exitFullscreen?.();
@@ -839,6 +841,7 @@ function MissionOneBar({
           </button>
         )}
         <button className="m1-tool" type="button" onClick={onAudio}>{audio ? "Geluid aan" : "Geluid uit"}</button>
+        {audio && <SoundSetButton className="m1-tool" />}
         <button className="m1-tool" type="button" onClick={onFull}>Volledig scherm</button>
         <button className="m1-tool" type="button" aria-pressed={rail === "mission"} onClick={() => onRail("mission")}>Dossier</button>
         <button className="m1-tool" type="button" aria-pressed={rail === "evidence"} onClick={() => onRail("evidence")}>Bewijs</button>

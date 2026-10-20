@@ -37,6 +37,12 @@
   background: #101a2b; color: inherit; text-align: left; cursor: pointer; font: inherit;
 }
 .os-status-grid article, .os-settings article { cursor: default; }
+.os-sets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.os-sets button {
+  min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #2a4f73;
+  background: #102033; color: inherit; cursor: pointer;
+}
+.os-sets button.on { border-color: #7ec8ff; background: #12304d; color: #fff; }
 .os-tile { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .os-tile i { width: 52px; height: 52px; display: block; }
 .os-tile i svg { width: 52px; height: 52px; }

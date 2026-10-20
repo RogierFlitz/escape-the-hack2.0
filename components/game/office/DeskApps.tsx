@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readSoundSet, setSoundSet, soundSets, type SoundSetId } from "../audio";
 import { Pin, type Investigation } from "../Intranet";
 import { deskNotes } from "./records";
 
@@ -160,6 +161,13 @@ export function SecurityApp() {
 }
 
 export function SettingsApp({ audio, onToggleAudio }: { audio: boolean; onToggleAudio: () => void }) {
+  const [activeSet, chooseSet] = useState<SoundSetId>("bureau");
+  useEffect(() => {
+    const sync = () => chooseSet(readSoundSet());
+    sync();
+    window.addEventListener("eth-sound-set", sync);
+    return () => window.removeEventListener("eth-sound-set", sync);
+  }, []);
   return (
     <div className="os-app">
       <header className="os-head">
@@ -172,8 +180,13 @@ export function SettingsApp({ audio, onToggleAudio }: { audio: boolean; onToggle
       <div className="os-settings">
         <article>
           <strong>Geluid</strong>
-          <p>Spraak en signalen van deze omgeving.</p>
+          <p>Spraak en signalen van deze omgeving. De set hoor je zodra het geluid aanstaat.</p>
           <button className="ol-cmd" type="button" onClick={onToggleAudio}>{audio ? "Geluid aan" : "Geluid uit"}</button>
+          <div className="os-sets" role="group" aria-label="Soundset">
+            {soundSets.map((set) => (
+              <button key={set.id} className={set.id === activeSet ? "on" : ""} type="button" aria-pressed={set.id === activeSet} onClick={() => setSoundSet(set.id)}>{set.label}</button>
+            ))}
+          </div>
         </article>
         <article>
           <strong>Weergave</strong>
