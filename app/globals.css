@@ -3339,8 +3339,21 @@ body.cine-fail .brief-app { animation: cine-jitter 0.45s steps(2, end) infinite;
 .pulse fieldset { margin: 0; padding: 12px; border: 1px solid #24384e; border-radius: 14px; display: grid; gap: 8px; }
 .pulse legend { padding: 0 6px; font-weight: 700; }
 .pulse fieldset button {
-  min-height: 52px; padding: 10px 14px; border-radius: 12px; border: 1px solid #2a4f73; background: #102033; color: inherit;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 52px; padding: 10px 14px; border-radius: 12px; border: 1px solid #2a4f73; background: #102033; color: #f4f7fb;
   text-align: left; font: inherit; font-weight: 700; cursor: pointer;
 }
-.pulse fieldset button.on { border-color: #7ec8ff; background: #16324f; }
-.ending .pulse { max-width: 920px; margin: 0 auto; }
+.pulse fieldset button::before {
+  content: ""; width: 16px; height: 16px; border: 2px solid currentColor; border-radius: 50%; flex: 0 0 16px;
+}
+.pulse fieldset button.on { border-color: #7ec8ff; background: #16324f; color: #f4f7fb; }
+.pulse fieldset button.on::before { background: currentColor; box-shadow: inset 0 0 0 3px #16324f; }
+.office-root .pulse fieldset { border-color: #d5deea; background: #fff; }
+.office-root .pulse fieldset button { background: #f7f9fc; color: #1b2836; border-color: #c5d2e0; }
+.office-root .pulse fieldset button.on { background: #e7f3fa; color: #123044; border-color: #1d6a93; }
+.office-root .pulse fieldset button.on::before { box-shadow: inset 0 0 0 3px #e7f3fa; }
+.ending .pulse { max-width: 920px; margin: 0 auto; color: #f4f7fb; }
+.office-root .ending .pulse fieldset { border-color: #2a4f73; background: transparent; }
+.office-root .ending .pulse fieldset button { background: #102033; color: #f4f7fb; border-color: #2a4f73; }
+.office-root .ending .pulse fieldset button.on { background: #16324f; color: #f4f7fb; border-color: #7ec8ff; }
+.office-root .ending .pulse fieldset button.on::before { box-shadow: inset 0 0 0 3px #16324f; }
