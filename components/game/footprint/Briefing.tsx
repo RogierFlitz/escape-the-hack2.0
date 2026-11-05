@@ -1,6 +1,7 @@
 "use client";
 
 import { noraArchive } from "@/lib/game/footprint";
+import { noraBrief } from "@/lib/game/guide";
 import type { DeskMode } from "./meta";
 
 export function Mission1Briefing({
@@ -30,7 +31,9 @@ export function Mission1Briefing({
           <b>NORA</b>
           <span>Onderzoeksbriefing</span>
         </p>
-        <p className="m1-now"><b>Nu doen.</b> {text ?? "Open een bron, koppel die aan een vraag en dien de verbanden in."}</p>
+        <p className="m1-now"><b>Situatie.</b> {noraBrief("ch1-bays")?.situatie}</p>
+        <p className="m1-now"><b>Doel.</b> {noraBrief("ch1-bays")?.doel}</p>
+        <p className="m1-now"><b>Actie.</b> {noraBrief("ch1-bays")?.actie ?? text}</p>
         {open && (
           <div className="m1-more">
             <p>{noraArchive}</p>

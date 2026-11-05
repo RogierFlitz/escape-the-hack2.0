@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { bootServers, cables, network, ports, puzzleCues } from "@/lib/game/content";
+import { bootServers, cables, network, ports } from "@/lib/game/content";
 import {
   cableRole,
   clues,
   flows,
   hops,
   measures,
-  noraNetwork,
   schema,
   sections,
   sessions,
@@ -18,7 +17,7 @@ import { Mission3LogExplorer } from "./network/Logs";
 import { Mission3NetworkMap } from "./network/Map";
 import { nodeLabel } from "./network/shared";
 import { Mission3Timeline } from "./network/Timeline";
-import { Pick } from "./puzzles/ui";
+import { Pick, TaskCue } from "./puzzles/ui";
 import "./network/soc.css";
 
 function useDraft<T>(id: string, initial: T) {
@@ -143,7 +142,7 @@ export function NetworkDesk({
 
   return (
     <div className={`soc${glitch ? " glitch" : ""}`}>
-      <p className="soc-nora">{noraNetwork} Richting op de kaart: van het werkstation naar de kluis. Authenticatie is de extra controle bij het inloggen. De kluis bewaart de back-ups.</p>
+      <TaskCue id={puzzleId} />
       <nav className="soc-tabs" aria-label="Netwerk">
         {tabs.map((item) => (
           <button key={item.id} className={section === item.id ? "on" : ""} type="button" onClick={() => setSection(item.id)}>
@@ -211,11 +210,9 @@ function SessionCase({
     setClues((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
   const ready = Boolean(session) && picked.length >= 2;
-  const cue = puzzleCues["ch3-logic"];
   return (
     <div className="soc-case">
       <p className="kicker">Onderzoek</p>
-      {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
         <p>Welke sessie wijkt af? Kies één.</p>
         <div className="soc-picks">
@@ -254,11 +251,9 @@ function RouteCase({
   onSolve: (payload: unknown) => void;
 }) {
   const labels = path.map((id) => network.nodes.find((node) => node.id === id)?.label ?? id);
-  const cue = puzzleCues["ch3-path"];
   return (
     <div className="soc-case">
       <p className="kicker">Sprongen</p>
-      {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
         {hops.map((hop) => (
           <p key={hop.id}><b>{hop.time}</b> {hop.text}</p>
@@ -286,11 +281,9 @@ function IsolateCase({
   onSolve: (payload: unknown) => void;
 }) {
   const notes = measures.filter((item) => actions.includes(item.id));
-  const cue = puzzleCues["ch3-boot"];
   return (
     <div className="soc-case">
       <p className="kicker">Isolatie</p>
-      {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
         <p>Tijdelijk. De sessie blijft bestaan tot de finale.</p>
         {notes.map((item) => <p key={item.id}>{item.preview}</p>)}
@@ -319,11 +312,9 @@ function RestoreCase({
 }) {
   const rest = bootServers.filter((server) => !order.includes(server.id));
   const ready = Object.keys(map).length >= 4 && order.length === 3;
-  const cue = puzzleCues["ch3-cables"];
   return (
     <div className="soc-case">
       <p className="kicker">Startvolgorde</p>
-      {cue && <p className="soc-cue"><b>Nu doen. </b>{cue.text}</p>}
       <div className="soc-ask">
         <p>Een systeem start pas als datgene waar het op wacht al draait.</p>
         {order.map((id, index) => {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { emptyAwareness, gradeDecision, includesTraining, pendingStoryDecision, prologueComplete, pulseComplete, trainingReport } from "@/lib/game/awareness";
 import { chapters, puzzleCues } from "@/lib/game/content";
+import { noraBrief } from "@/lib/game/guide";
 import { asSector, sectorLine } from "@/lib/game/sector";
 import { SectorProvider, useSector } from "./SectorSkin";
 import { dossier, emptyStory, failLines, missionTitle, nextBeat, noraNote, speech, winLines } from "@/lib/game/story";
@@ -253,7 +254,8 @@ export function PlayApp({ code }: { code: string }) {
       const solvedNow = (data.progress?.solved ?? data.snapshot?.progress?.solved ?? before) > before;
       const puzzleId = body && typeof body === "object" && "puzzleId" in body ? String((body as { puzzleId: unknown }).puzzleId) : "";
       const early = puzzleId.startsWith("ch1-") || puzzleId.startsWith("ch2-") || puzzleId.startsWith("ch3-") || puzzleId.startsWith("ch4-") || puzzleId.startsWith("ch5-") || puzzleId.startsWith("ch6-");
-      setNote(solvedNow ? (early ? "Vastgelegd." : "Laag hersteld.") : null);
+      const kade = typeof data.kade === "string" ? data.kade : "";
+      setNote(kade || (solvedNow ? (early ? "Vastgelegd." : "Laag hersteld.") : null));
       if (solvedNow) playOk();
       return true;
     } catch {
@@ -541,7 +543,7 @@ export function PlayApp({ code }: { code: string }) {
             <aside className={`panel col rail-left${rail === "mission" ? " open" : ""}`}>
               <p className="kicker">{missionTitle(missionId)}</p>
               {snap.session.sector && snap.session.sector !== "general" && <p className="muted">{sectorLine(snap.session.sector)}</p>}
-              <p className="muted">Nu: {stagePuzzle ? puzzleCues[stagePuzzle.id]?.text : beat.kind === "finale" ? puzzleCues[beat.step]?.text : beat.kind === "social" ? "Kies vijf openbare sporen. Druk daarna op Dit zijn de vijf sporen." : beat.kind === "backup" ? "Vergelijk de kopieën en kies er één. Druk daarna op Deze back-up terugzetten." : spoken?.title ?? "Volg de opdracht op dit scherm."}</p>
+              <p className="muted">Nu: {stagePuzzle ? (noraBrief(stagePuzzle.id)?.doel ?? puzzleCues[stagePuzzle.id]?.text) : beat.kind === "finale" ? (noraBrief(beat.step)?.doel ?? puzzleCues[beat.step]?.text) : beat.kind === "social" ? (noraBrief("social")?.doel ?? "Kies vijf openbare sporen.") : beat.kind === "backup" ? (noraBrief("backup")?.doel ?? "Vergelijk de kopieën en kies er één.") : spoken?.title ?? "Volg de opdracht op dit scherm."}</p>
               <div className="list" style={{ marginTop: 10 }}>
                 {missionSteps.map((item) => (
                   <div key={item.id} className={`task${item.id === stagePuzzle?.id ? " on" : ""}${item.solved ? " done" : ""}`}>
@@ -672,7 +674,7 @@ export function PlayApp({ code }: { code: string }) {
             </aside>
           </section>
           <footer className="foot">
-            <div className={`note${note === "Laag hersteld." || note === "Vastgelegd." ? " good" : ""}`}>{spoken ? "" : note ? asSector(snap.session.sector, note) : ""}</div>
+            <div className={`note${note === "Laag hersteld." || note === "Vastgelegd." ? " good" : ""}${note?.startsWith("KADE:") || note?.startsWith("Aanvaller:") ? " voice" : ""}`}>{spoken ? "" : note ? asSector(snap.session.sector, note) : ""}</div>
             <div className="grow" />
             {stagePuzzle && !stagePuzzle.solved && (
               <>

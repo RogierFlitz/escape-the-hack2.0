@@ -20,8 +20,8 @@ import {
   supports,
   traceSupports,
 } from "@/lib/game/supplier";
-import { puzzleCues } from "@/lib/game/content";
-import { Pick } from "./puzzles/ui";
+import { noraBrief } from "@/lib/game/guide";
+import { Pick, TaskCue } from "./puzzles/ui";
 
 function useDraft<T>(id: string, initial: T) {
   const key = `eth-m2-${id}`;
@@ -70,7 +70,7 @@ export function SupplierDesk({
   const [evidence, setEvidence] = useDraft<string[]>("ch2-acrostic-evidence", []);
   const open = mails.find((mail) => mail.id === openId) ?? null;
   const investigating = puzzleId === "ch2-acrostic";
-  const cue = puzzleCues[puzzleId];
+  const cue = noraBrief(puzzleId)?.actie;
 
   useEffect(() => {
     setSection(preferred);
@@ -178,7 +178,8 @@ export function SupplierDesk({
           </section>
         )}
         <section className="sp-read" aria-label="Bron">
-          <details className="sp-nora" open>
+          <TaskCue id={puzzleId} />
+          <details className="sp-nora">
             <summary>Uitleg</summary>
             <p>{noraSupplier}</p>
           </details>
@@ -244,7 +245,7 @@ export function SupplierDesk({
           <MailDossier
             suspect={suspect}
             evidence={evidence}
-            cue={cue?.text}
+            cue={cue}
             solved={solved}
             busy={busy}
             onView={showEvidence}
@@ -253,7 +254,7 @@ export function SupplierDesk({
             onSolve={() => onSolve({ mail: suspect, evidence })}
           />
         ) : (
-          <Case puzzleId={puzzleId} cue={cue?.text} solved={solved} busy={busy} onSolve={onSolve} />
+          <Case puzzleId={puzzleId} cue={cue} solved={solved} busy={busy} onSolve={onSolve} />
         )}
       </div>
     </div>

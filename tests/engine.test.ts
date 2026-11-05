@@ -8,6 +8,7 @@ import { grade } from "../lib/game/grade";
 import { hintText, rescueHint } from "../lib/game/hints";
 import { phishDue, phishReady } from "../lib/game/office";
 import { PUZZLE_IDS, puzzleCues } from "../lib/game/content";
+import { GUIDE_IDS, kadeHit, kadeMiss, noraBrief } from "../lib/game/guide";
 import { demoBeat, demoBlocked } from "../lib/game/demo";
 import { finaleSessions } from "../lib/game/shutdown";
 import { applyStory, emptyStory, nextBeat } from "../lib/game/story";
@@ -246,6 +247,35 @@ test("KADE opent het verhaal stap voor stap", () => {
   assert.equal(hintText("ch3-path", 3).join(" ").includes("CRU"), false);
   assert.equal(hintText("ch3-boot", 3).join(" ").includes("ROUTE-7"), false);
   assert.equal(hintText("ch3-logic", 3).join(" ").includes("dit is de hacker"), false);
+});
+
+test("NORA noemt situatie, doel en actie, KADE blijft bij twee zinnen", () => {
+  const banned = ["N74192", "DOCK-244", "helix-svc", "ROUTE-7", "SEAL", "kluis-nacht", "HX-19", "Adler", "unintended", "onbedoeld", "helix-event.co", "CRU", "vierkant"];
+  function sentences(text: string) {
+    return text.replace(/^(KADE|Aanvaller):\s*/, "").split(/(?<=[.!?])\s+/).filter(Boolean);
+  }
+  for (const id of PUZZLE_IDS) {
+    const brief = noraBrief(id);
+    assert.ok(brief?.situatie && brief.doel && brief.actie, id);
+    const hit = kadeHit(id);
+    const miss = kadeMiss(id);
+    assert.ok(hit && miss, id);
+    assert.ok(sentences(hit).length <= 2, hit);
+    assert.ok(sentences(miss).length <= 2, miss);
+  }
+  for (const id of ["social", "backup", "access", "revoke", "backup-check"]) {
+    assert.ok(noraBrief(id), id);
+    assert.ok(kadeHit(id) && kadeMiss(id), id);
+  }
+  assert.equal(noraBrief("seals")?.doel, noraBrief("ch6-seals")?.doel);
+  assert.equal(GUIDE_IDS.includes("ch1-bays"), true);
+  const blob = GUIDE_IDS.map((id) => {
+    const brief = noraBrief(id);
+    return `${brief?.situatie} ${brief?.doel} ${brief?.actie} ${kadeHit(id)} ${kadeMiss(id)}`;
+  }).join("\n");
+  for (const word of banned) assert.equal(blob.includes(word), false, word);
+  assert.equal(kadeMiss("access")?.includes("KADE"), false);
+  assert.equal(kadeMiss("backup-check")?.includes("KADE"), false);
 });
 
 test("opdrachtregels noemen de handeling en niet het antwoord", () => {

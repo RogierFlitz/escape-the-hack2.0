@@ -7,7 +7,6 @@ import {
   chatLines,
   documents,
   intents,
-  noraInsider,
   people,
   placeChoices,
   proof,
@@ -109,7 +108,7 @@ export function InsiderDesk({
 
   return (
     <div className="rv in">
-      <TaskCue id={puzzleId} nora={puzzleId === "ch5-camera" ? noraInsider : undefined} />
+      <TaskCue id={puzzleId} />
       <div className="rv-main">
         <div className="in-tabs" role="tablist" aria-label="Bewijs van missie 5">
           {sections.map((item) => (

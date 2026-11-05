@@ -8,6 +8,7 @@ import { grade } from "./grade";
 import { hintText, rescueHint } from "./hints";
 import { DEMO_CODE, demoProgress, type DemoStop } from "./demo";
 import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, recordDecision, recordEval, recordPulse, type PulseWhen } from "./awareness";
+import { kadeHit, kadeMiss } from "./guide";
 import { applyStory, emptyStory, lastTransmission, missionReady, nextBeat } from "./story";
 import { parseSector } from "./sector";
 import type { StoryInput, StoryState } from "./story";
@@ -62,7 +63,8 @@ export async function solve(code: string, puzzleId: string, payload: unknown) {
     const result = grade(puzzleId, payload);
     if (!result.ok) {
       team.fails += 1;
-      return { team, mismatch: true, note: result.note };
+      const voice = result.reason === "mismatch" ? kadeMiss(puzzleId) : null;
+      return { team, mismatch: true, note: voice ?? result.note };
     }
     team.solved = [...team.solved, puzzleId];
     if (result.token && !team.inventory.includes(result.token)) team.inventory = [...team.inventory, result.token];
@@ -73,7 +75,7 @@ export async function solve(code: string, puzzleId: string, payload: unknown) {
       team.status = "completed";
       team.finishedAt = now;
     }
-    return { team };
+    return { team, note: kadeHit(puzzleId) ?? undefined };
   });
 }
 
@@ -173,7 +175,7 @@ export async function saveStory(code: string, input: StoryInput) {
     if ("error" in applied) return applied;
     team.story = applied.story;
     team.lastProgressAt = now;
-    return { team };
+    return { team, note: applied.note };
   });
 }
 

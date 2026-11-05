@@ -1,4 +1,5 @@
 import { chapters } from "./content";
+import { kadeHit, kadeMiss } from "./guide";
 
 export type StoryState = {
   scenes: string[];
@@ -532,7 +533,7 @@ function sameSet(left: string[], right: readonly string[]) {
   return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
-export function applyStory(story: StoryState, solved: string[], reported: boolean, input: StoryInput): { story: StoryState } | { error: string } {
+export function applyStory(story: StoryState, solved: string[], reported: boolean, input: StoryInput): { story: StoryState; note?: string } | { error: string } {
   const beat = nextBeat(story, solved, reported);
   const next = { ...story, scenes: [...story.scenes], finale: [...story.finale] };
   if (input.scene) {
@@ -550,19 +551,19 @@ export function applyStory(story: StoryState, solved: string[], reported: boolea
   }
   if (input.social) {
     if (beat.kind !== "social") return { error: "De berichten zijn nu niet aan de beurt." };
-    if (!sameSet(input.social, SOCIAL_CORRECT)) return { error: "Dit zijn niet de vijf sporen die KADE gebruikte." };
+    if (!sameSet(input.social, SOCIAL_CORRECT)) return { error: kadeMiss("social") ?? "Dit zijn niet de vijf sporen." };
     next.social = true;
-    return { story: next };
+    return { story: next, note: kadeHit("social") ?? undefined };
   }
   if (input.backup) {
     if (beat.kind !== "backup") return { error: "De back-up is nu niet aan de beurt." };
-    if (input.backup !== BACKUP_ID) return { error: "NORA: Deze kopie haalt het probleem weer naar binnen. Vergelijk tijd, verbinding en de toegangslog." };
+    if (input.backup !== BACKUP_ID) return { error: kadeMiss("backup") ?? "Deze kopie haalt het probleem weer naar binnen." };
     next.backup = true;
-    return { story: next };
+    return { story: next, note: kadeHit("backup") ?? undefined };
   }
   if (input.finale) {
     if (beat.kind !== "finale" || beat.step !== input.finale) return { error: "Deze stap is nu niet aan de beurt." };
-    if (input.finale === "access" && input.pick !== ACCESS_ID) return { error: "NORA: Die sessie hoort bij een gewone taak. Vergelijk tijd, herkomst en wat ze heeft aangeraakt." };
+    if (input.finale === "access" && input.pick !== ACCESS_ID) return { error: kadeMiss("access") ?? "Die sessie hoort bij een gewone taak." };
     if (input.finale === "access") {
       const clues = input.clues ?? [];
       const matched = ["export", "route", "vault"].filter((id) => clues.includes(id));
@@ -571,12 +572,12 @@ export function applyStory(story: StoryState, solved: string[], reported: boolea
     if (input.finale === "backup-check" && !story.backup) return { error: "Er is nog geen schone back-up gekozen." };
     if (input.finale === "backup-check") {
       const checks = input.checks ?? [];
-      if (checks.includes("share-open")) return { error: "NORA: Die deellink staat nog open. Die hoort niet bij de schone set." };
+      if (checks.includes("share-open")) return { error: kadeMiss("backup-check") ?? "Die deellink staat nog open." };
       const needed = ["files", "kluis", "revoked", "route", "share-closed"];
       if (!needed.every((id) => checks.includes(id))) return { error: "NORA: De controle is nog niet compleet. Er staat nog een open lijn in de lijst." };
     }
     if (!next.finale.includes(input.finale)) next.finale.push(input.finale);
-    return { story: next };
+    return { story: next, note: kadeHit(input.finale) ?? undefined };
   }
   return { error: "Geen verhaalactie." };
 }

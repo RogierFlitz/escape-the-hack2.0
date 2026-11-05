@@ -5,6 +5,7 @@ import { allSolved, completedChapters, currentChapterId, scoreBreakdown } from "
 import { baseRemainingSec, crisisElapsedSec, inOffice, teamRemainingSec } from "../time";
 import type { AdminSnapshot, PlaySnapshot, Session, Team } from "../types";
 import { chapters, files, puzzleCues, puzzles, tokenLabel } from "./content";
+import { noraBrief } from "./guide";
 import { pendingEvents } from "./events";
 import { hintText, rescueHint } from "./hints";
 import { emptyAwareness } from "./awareness";
@@ -36,11 +37,12 @@ function easyGuide(session: Session, team: Team, chapterId: number) {
   const puzzle = puzzles.find((item) => item.chapterId === chapterId && !team.solved.includes(item.id) && missionReady(story, team.solved, item.id) === null);
   if (!puzzle) return null;
   const cue = puzzleCues[puzzle.id];
+  const brief = noraBrief(puzzle.id);
   return {
     puzzleId: puzzle.id,
     title: puzzle.title,
-    action: cue?.action ?? "",
-    text: cue?.text ?? puzzle.brief,
+    action: brief?.actie ?? cue?.action ?? "",
+    text: brief ? `${brief.situatie} ${brief.doel}` : (cue?.text ?? puzzle.brief),
     steps: hintText(puzzle.id, 3),
   };
 }
