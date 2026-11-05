@@ -24,17 +24,17 @@ export const PULSE = [
     id: "mail",
     prompt: "Een bekende naam vraagt per mail om een bestand te openen. Wat doe je eerst?",
     choices: [
-      { id: "check", label: "Controleren via een kanaal dat je al kent" },
       { id: "open", label: "De bijlage openen, de naam is bekend" },
+      { id: "check", label: "Controleren via een kanaal dat je al kent" },
     ],
     preferred: "check",
   },
   {
     id: "public",
-    prompt: "Een collega wil de planning en een badgefoto openbaar delen.",
+    prompt: "Een collega wil een foto van de interne planning én van een badge op social media zetten voor het bedrijfsfeest. Wat doe je?",
     choices: [
-      { id: "hold", label: "Dat niet delen, ook niet als het feestelijk oogt" },
-      { id: "post", label: "Het mag, het is geen wachtwoord" },
+      { id: "post", label: "Plaatsen, er staat geen wachtwoord op" },
+      { id: "hold", label: "Niet plaatsen. Planning en badges blijven intern" },
     ],
     preferred: "hold",
   },
@@ -42,8 +42,8 @@ export const PULSE = [
     id: "supplier",
     prompt: "Een leverancier vraagt om een extra account.",
     choices: [
-      { id: "known", label: "Alleen via het bekende contact, met beperkte rechten" },
       { id: "grant", label: "Het account meteen aanmaken" },
+      { id: "known", label: "Alleen via het bekende contact, met beperkte rechten" },
     ],
     preferred: "known",
   },
@@ -51,8 +51,8 @@ export const PULSE = [
     id: "backup",
     prompt: "Bestanden zijn onbruikbaar. Iemand stuurt een onbekend herstelprogramma.",
     choices: [
-      { id: "procedure", label: "De incidentprocedure volgen en het programma niet starten" },
       { id: "run", label: "Het programma starten om tijd te winnen" },
+      { id: "procedure", label: "De incidentprocedure volgen en het programma niet starten" },
     ],
     preferred: "procedure",
   },
@@ -436,17 +436,17 @@ export function evalView(id: string) {
     "public-doc": {
       prompt: "Een vertrouwelijk document staat op een plek die mensen buiten het team kunnen openen.",
       choices: [
-        { id: "limit", label: "Intern melden en de deling laten beperken" },
         { id: "hope", label: "Niets doen en hopen dat niemand het ziet" },
         { id: "share", label: "Het document nog breder delen zodat iedereen het kan nakijken" },
+        { id: "limit", label: "Intern melden en de deling laten beperken" },
       ],
     },
     login: {
       prompt: "Er is een login op een account vanaf een onbekende plek, buiten werktijd.",
       choices: [
-        { id: "report", label: "Melden en het account laten controleren" },
         { id: "click", label: "De link in de waarschuwing openen" },
         { id: "ignore", label: "Het laten zitten" },
+        { id: "report", label: "Melden en het account laten controleren" },
       ],
     },
     colleague: {

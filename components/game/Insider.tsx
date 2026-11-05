@@ -131,16 +131,20 @@ export function InsiderDesk({
           />
         ) : section === "wall" ? (
           <div className="in-wall">
-            {wall.map((item) => {
-              const frame = item.stills[index[item.id] ?? 0];
-              return (
-                <button key={item.id} type="button" onClick={() => setZoom(frame.id)}>
-                  <img src={frame.image} alt="" />
-                  <span><b>{item.code}</b> {item.place}</span>
-                  <small>fragment {frame.time}{frames.includes(frame.id) ? " · bewaard" : ""}</small>
-                </button>
-              );
-            })}
+            <p className="in-note">Vier camera's, elk met twee beelden. Een persoon is iemand in beeld. Een pas is een badge die blijft liggen, ook als die persoon weg is. Er is geen aparte afteller: gebruik de gewone speelklok.</p>
+            {wall.map((item) => (
+              <article key={item.id}>
+                <span><b>{item.code}</b> {item.place}</span>
+                <div className="in-pair">
+                  {item.stills.map((still) => (
+                    <button key={still.id} type="button" onClick={() => setZoom(still.id)}>
+                      <img src={still.image} alt="" />
+                      <small>{still.time} · {still.caption}{frames.includes(still.id) ? " · bewaard" : ""}</small>
+                    </button>
+                  ))}
+                </div>
+              </article>
+            ))}
           </div>
         ) : section === "time" ? (
           <ol className="in-time">
@@ -190,7 +194,7 @@ export function InsiderDesk({
       {puzzleId === "ch5-camera" && (
         <aside className="fp-side">
           <p className="kicker">Momentopnames</p>
-          <p>Elke camera heeft twee fragmenten. Bewaar het fragment dat iemand of een pas op een plek zet. Meerdere fragmenten mogen. Tik nog eens op een bewaard fragment om het weg te halen.</p>
+          <p>Bewaar het beeld waarop een persoon óf een pas een plek bewijst. Een pasregistratie noemt een naam. Een camera laat een plek zien. Dat hoeft niet dezelfde persoon te zijn. Meerdere beelden mogen. Tik nog eens om een bewaard beeld weg te halen.</p>
           <p>{frames.length} bewaard</p>
           <button className="btn btn-mint" type="button" disabled={busy || solved || frames.length === 0} onClick={() => onSolve({ frames })}>Beelden vastleggen</button>
         </aside>

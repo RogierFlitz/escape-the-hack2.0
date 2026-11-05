@@ -1,5 +1,5 @@
 export const noraRecovery =
-  "Meerdere bestanden zijn versleuteld. Ik heb een geïsoleerde herstelomgeving beschikbaar gemaakt. We moeten eerst de getroffen gegevens onderzoeken, vervolgens het herstelprotocol reconstrueren en pas daarna een betrouwbare back-up selecteren.";
+  "Sommige bestanden zijn op slot: je kunt ze niet meer lezen. Dat heet versleuteld. Markeer alleen die bestanden. Herstel daarna via een gecontroleerde back-up, niet via een onbekend programma. Een nieuwere kopie is niet vanzelf de veilige.";
 
 export type VaultFile = {
   id: string;

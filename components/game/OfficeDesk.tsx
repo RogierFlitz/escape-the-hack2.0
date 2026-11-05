@@ -379,6 +379,7 @@ export function OfficeDesk({
     readMail,
     onOpenMail: (id: string | null) => {
       setReading(id);
+      if (id) setReadMail((current) => current.includes(id) ? current : [...current, id]);
       if (id === "phish") setMailOpen(true);
     },
     onSeen: see,

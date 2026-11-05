@@ -178,12 +178,10 @@ export function SupplierDesk({
           </section>
         )}
         <section className="sp-read" aria-label="Bron">
-          {puzzleId === "ch2-acrostic" && section === "mail" && (
-            <details className="sp-nora">
-              <summary>NORA</summary>
-              <p>{noraSupplier}</p>
-            </details>
-          )}
+          <details className="sp-nora" open>
+            <summary>Uitleg</summary>
+            <p>{noraSupplier}</p>
+          </details>
           {section === "mail" && open && (
             <Letter
               mail={open}
@@ -428,11 +426,11 @@ function FileView({ tab, onTab }: { tab: "meta" | "body" | "compare" | "scan"; o
       {tab === "compare" && (
         <div className="sp-split">
           <div>
-            <p>v3, eerder ontvangen</p>
+            <p>Links: eerdere planning van {realMeta.author}</p>
             <ol>{realPlan.map((line) => <li key={line}>{asSector(sector, line)}</li>)}</ol>
           </div>
           <div>
-            <p>xlsx uit de nacht</p>
+            <p>Rechts: bijlage van {fileMeta.author}</p>
             <ol>{fakePlan.map((line) => <li key={line}>{asSector(sector, line)}</li>)}</ol>
           </div>
         </div>

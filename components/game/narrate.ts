@@ -217,8 +217,11 @@ export function stopNarration() {
 }
 
 export function narrate(line: string, audio: boolean, onDone?: () => void, voice: boolean | StoryVoice = false) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
   const text = line.trim();
+  if (typeof window === "undefined" || !window.speechSynthesis) {
+    if (audio && text && onDone) window.setTimeout(onDone, 400);
+    return;
+  }
   if (!audio || !text) {
     stopNarration();
     return;

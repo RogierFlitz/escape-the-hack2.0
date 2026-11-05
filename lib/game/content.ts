@@ -100,11 +100,11 @@ export const puzzleCues: Record<string, { text: string; action: string }> = {
     action: "Kies, daarna bevestigen",
   },
   "ch3-logic": {
-    text: "Kies de sessie die afwijkt en minstens twee aanwijzingen. Druk daarna op Conclusie vastleggen.",
+    text: "Begin bij de nachtelijke sessie die niet bij de gewone back-up hoort. Kies die sessie en minstens twee aanwijzingen. Druk daarna op Conclusie vastleggen.",
     action: "Kies, daarna vastleggen",
   },
   "ch3-path": {
-    text: "Tik de sprongen aan vanaf het werkstation naar de kluis. Alleen lijnen die op de kaart staan. Druk daarna op Route vastleggen.",
+    text: "Richting: start bij het werkstation en volg de lijn naar de kluis. Tik alleen stappen die op de kaart staan. Druk daarna op Route vastleggen.",
     action: "Teken de route, daarna vastleggen",
   },
   "ch3-boot": {
@@ -116,7 +116,7 @@ export const puzzleCues: Record<string, { text: string; action: string }> = {
     action: "Koppel, daarna herstellen",
   },
   "ch4-symbols": {
-    text: "Open de bestanden en markeer wat niet meer leesbaar is. Druk daarna op Schade vastleggen.",
+    text: "Open elk bestand. Versleuteld betekent: op slot, de inhoud is niet leesbaar. Markeer alleen die bestanden. Druk daarna op Schade vastleggen.",
     action: "Markeer, daarna vastleggen",
   },
   "ch4-sequence": {

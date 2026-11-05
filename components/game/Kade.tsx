@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Speech } from "@/lib/game/story";
+import { playMessage } from "./audio";
 import { playSceneVoice, stopSceneVoice } from "./mix";
 import { narrate, stopNarration } from "./narrate";
 
@@ -34,6 +35,7 @@ export function KadeTransmission({
       stopNarration();
     }
     let alive = true;
+    if (audio && scene.id === "m2" && index === 0) playMessage();
     if (audio && playSceneVoice(scene.id, index, () => {
       if (!alive || index >= scene.lines.length - 1) return;
       setIndex((value) => value + 1);

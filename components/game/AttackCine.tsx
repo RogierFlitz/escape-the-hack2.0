@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { asSector } from "@/lib/game/sector";
-import { playGlitch, playIncoming, playLock } from "./audio";
+import { playAlert, playGlitch, playIncoming, playLock, playSecureConnect } from "./audio";
 import { narrate, stopNarration } from "./narrate";
 import { speech } from "@/lib/game/story";
 import { useSector } from "./SectorSkin";
@@ -93,6 +93,8 @@ export function AttackCine({
       return () => window.clearInterval(timer);
     }
     if (phase === "incoming") playIncoming();
+    if (phase === "kade") playAlert();
+    if (phase === "nora") playSecureConnect();
   }, [phase]);
 
   useEffect(() => {
@@ -147,6 +149,7 @@ export function AttackCine({
         alive = false;
       };
     }
+    stopNarration();
     if (line >= lines.length - 1) return;
     const timer = window.setTimeout(() => setLine((value) => value + 1), 2800);
     return () => window.clearTimeout(timer);
@@ -172,6 +175,7 @@ export function AttackCine({
         alive = false;
       };
     }
+    stopNarration();
     if (noraLine >= NORA.length - 1) return;
     const timer = window.setTimeout(() => setNoraLine((value) => value + 1), 2800);
     return () => window.clearTimeout(timer);

@@ -140,6 +140,16 @@ function Social({ source: raw, photo }: { source: Source; photo?: string }) {
       </div>
       <h2>{source.title}</h2>
       <p>{source.body}</p>
+      {raw.id === "adler-table" && (
+        <div className="m1-run" aria-label="Planning op de foto">
+          <p>Planning op de foto</p>
+          <ul>
+            <li>Nexora Day · Dokzaal</li>
+            <li>07:30 crew call</li>
+            <li>Vloer en crew: Helix Events</li>
+          </ul>
+        </div>
+      )}
       {photo && <img src={photo} alt="" />}
     </div>
   );

@@ -1,5 +1,5 @@
 export const noraNetwork =
-  "Ongeautoriseerde netwerkactiviteit gedetecteerd. We moeten de verdachte verbinding lokaliseren en isoleren. Let op: wanneer we de verkeerde systemen uitschakelen, verliezen we mogelijk toegang tot de back-ups. Onderzoek eerst de verbindingen voordat jullie ingrijpen.";
+  "Iemand gebruikt een bestaand leveranciersaccount om verder te komen. Zoek die sessie, zet hem apart, en laat de back-up en de log bereikbaar. Alles uitzetten lijkt veilig, maar dan kunnen jullie niet meer herstellen. Op het werk is dit: een extra controle bij het inloggen, kleine rechten, en verdachte activiteit melden.";
 
 export type Flow = {
   id: string;
