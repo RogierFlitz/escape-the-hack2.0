@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { asSector } from "@/lib/game/sector";
 import { narrate } from "./narrate";
 import { useSector } from "./SectorSkin";
@@ -41,7 +41,7 @@ function spokenLine(scene: string, step: number, brief: string[]) {
 
 function briefTypeMs(text: string) {
   if (!text) return 0;
-  return Math.max(2800, text.length * 82);
+  return Math.max(900, text.length * 36);
 }
 
 function subscribeReducedMotion(onChange: () => void) {
@@ -116,6 +116,8 @@ export function OriginPrologue({
   const [glitch, setGlitch] = useState(false);
   const [heard, setHeard] = useState<string | null>(null);
   const [typing, setTyping] = useState({ step: 0, count: 0 });
+  const [hold, setHold] = useState(false);
+  const linesRef = useRef<HTMLDivElement>(null);
   const sector = useSector();
   const brief = useMemo(() => BRIEFING_LINES.map((line) => asSector(sector, line)), [sector]);
   const scene = PROLOGUE_SCENES[index];
@@ -129,22 +131,31 @@ export function OriginPrologue({
     setStep(0);
     setGlitch(false);
     setHeard(null);
-    if (!audio) window.speechSynthesis?.cancel();
-  }, [scene, audio]);
+    setHold(scene === "breach");
+  }, [scene]);
 
   useEffect(() => {
-    if (!scene) return;
+    if (scene !== "breach") return;
+    const timer = window.setTimeout(() => setHold(false), 2200);
+    return () => window.clearTimeout(timer);
+  }, [scene]);
+
+  useEffect(() => {
+    if (!audio) window.speechSynthesis?.cancel();
+  }, [audio]);
+
+  useEffect(() => {
+    linesRef.current?.querySelector("[data-active='true']")?.scrollIntoView({ block: "nearest" });
+  }, [scene, step, typing.count]);
+
+  useEffect(() => {
+    if (!scene || scene === "brief" || hold) return;
     const raw = spokenLine(scene, step, brief);
     const line = raw ? asSector(sector, raw) : "";
     if (!line) return;
     let alive = true;
     narrate(line, audio, () => {
       if (!alive) return;
-      if (scene === "brief") {
-        if (step < brief.length - 1) setStep((value) => value + 1);
-        else finish("brief");
-        return;
-      }
       if (scene === "human" || scene === "market") {
         const cap = scene === "human" ? TRUST_LINES.length : MARKET_LINES.length;
         if (step < cap - 1) setStep((value) => value + 1);
@@ -152,11 +163,11 @@ export function OriginPrologue({
         return;
       }
       if (scene === "ghost" || scene === "osint" || scene === "breach") setHeard(scene);
-    }, scene === "brief" ? "nora" : "kade");
+    }, "kade");
     return () => {
       alive = false;
     };
-  }, [scene, step, audio, brief, sector]);
+  }, [scene, step, audio, brief, sector, hold]);
 
   useEffect(() => {
     if (!scene) return;
@@ -164,20 +175,19 @@ export function OriginPrologue({
     const wait = (ms: number) => window.setTimeout(() => undefined, ms * pace);
     if (scene === "brief") {
       if (reduce) {
-        const timer = window.setTimeout(() => finish("brief"), 7000);
+        const timer = window.setTimeout(() => finish("brief"), 4200);
         return () => window.clearTimeout(timer);
       }
-      if (audio) return;
       const line = brief[step] ?? "";
-      const hold = step < brief.length - 1 ? 900 : 1600;
+      const pause = step < brief.length - 1 ? 500 : 900;
       const timer = window.setTimeout(() => {
         if (step < brief.length - 1) setStep((value) => value + 1);
         else finish("brief");
-      }, briefTypeMs(line) + hold);
+      }, briefTypeMs(line) + pause);
       return () => window.clearTimeout(timer);
     }
     if (scene === "title") {
-      const timer = window.setTimeout(() => finish("title"), 7000 * pace);
+      const timer = window.setTimeout(() => finish("title"), 3600 * pace);
       return () => window.clearTimeout(timer);
     }
     if (scene === "ghost" || scene === "osint" || scene === "human" || scene === "market") {
@@ -194,25 +204,26 @@ export function OriginPrologue({
       return () => window.clearTimeout(timer);
     }
     if (scene === "breach") {
+      if (hold) return;
       if (!reduce && step === 3 && !glitch) {
-        const timer = window.setTimeout(() => setGlitch(true), 400);
+        const timer = window.setTimeout(() => setGlitch(true), 700);
         return () => window.clearTimeout(timer);
       }
       if (step < 3) {
-        const timer = window.setTimeout(() => setStep((value) => value + 1), 2800 * pace);
+        const timer = window.setTimeout(() => setStep((value) => value + 1), 4600 * pace);
         return () => window.clearTimeout(timer);
       }
       if (audio && heard !== "breach") return;
-      const timer = window.setTimeout(() => finish("breach"), audio ? 800 : reduce ? 900 : 1800);
+      const timer = window.setTimeout(() => finish("breach"), audio ? 1600 : reduce ? 1400 : 3200);
       return () => window.clearTimeout(timer);
     }
     if (scene === "hours") {
       window.speechSynthesis?.cancel();
-      const timer = window.setTimeout(() => finish("hours"), 8000 * pace);
+      const timer = window.setTimeout(() => finish("hours"), 4200 * pace);
       return () => window.clearTimeout(timer);
     }
     return () => window.clearTimeout(wait(0));
-  }, [scene, step, reduce, glitch, brief, audio, heard]);
+  }, [scene, step, reduce, glitch, brief, audio, heard, hold]);
 
   useEffect(() => {
     if (scene !== "brief" || reduce) return;
@@ -237,6 +248,29 @@ export function OriginPrologue({
     setIndex((value) => value + 1);
   }
 
+  function advance() {
+    if (!scene || hold) return;
+    if (scene === "brief") {
+      if (step < brief.length - 1) setStep((value) => value + 1);
+      else finish("brief");
+      return;
+    }
+    if (scene === "title" || scene === "hours") {
+      finish(scene);
+      return;
+    }
+    if (scene === "ghost" || scene === "osint" || scene === "human" || scene === "market") {
+      const cap = scene === "ghost" ? 4 : scene === "osint" ? 5 : scene === "human" ? TRUST_LINES.length : MARKET_LINES.length;
+      if (step < cap - 1) setStep((value) => value + 1);
+      else finish(scene);
+      return;
+    }
+    if (scene === "breach") {
+      if (step < 3) setStep((value) => value + 1);
+      else finish("breach");
+    }
+  }
+
   if (!scene) return null;
 
   return (
@@ -245,20 +279,23 @@ export function OriginPrologue({
       <header className="og-top">
         <strong>{asSector(sector, "NEXORA TECHNOLOGIES")}</strong>
         <span>SECURITY OPERATIONS</span>
-        <button type="button" onClick={onToggleAudio}>{audio ? "geluid aan" : "geluid uit"}</button>
-        <button type="button" onClick={() => { sessionStorage.setItem(`eth-origin-${code}`, "skip"); onSeen("skip"); }}>Naar Mara</button>
+        <span className="og-tools">
+          <button type="button" onClick={onToggleAudio}>{audio ? "geluid aan" : "geluid uit"}</button>
+          <button type="button" onClick={advance}>Volgende</button>
+          <button type="button" onClick={() => { sessionStorage.setItem(`eth-origin-${code}`, "skip"); onSeen("skip"); }}>Naar Mara</button>
+        </span>
       </header>
       <div className="og-stage">
         {scene === "brief" && <p className="og-ops-status" aria-hidden="true"><i /> signaal</p>}
         {scene === "brief" && (
           <div className="og-brief">
             <p className="kicker">CONFIDENTIAL INCIDENT BRIEFING</p>
-            <div className="og-lines">
+            <div className="og-lines" ref={linesRef}>
               {(reduce ? brief : brief.slice(0, step + 1)).map((line, lineIndex) => {
                 const active = !reduce && lineIndex === step;
                 const visible = active ? line.slice(0, typed) : line;
                 return (
-                  <p key={line}>
+                  <p key={line} data-active={active ? "true" : "false"}>
                     <span className="og-sr">{line}</span>
                     <span aria-hidden="true">
                       {visible}
@@ -323,12 +360,16 @@ export function OriginPrologue({
         {scene === "breach" && (
           <div className="og-breach">
             <div className="og-map" aria-hidden>
-              <i>buiten</i><i>poort</i><i className={step >= 2 ? "hot" : ""}>sessie</i><i className={step >= 3 ? "hot" : ""}>deel</i>
+              {!hold && step >= 0 && <i>buiten</i>}
+              {!hold && step >= 1 && <i>poort</i>}
+              {!hold && step >= 2 && <i className="hot">sessie</i>}
+              {!hold && step >= 3 && <i className="hot">deel</i>}
             </div>
-            {step >= 0 && <p>AUTHENTICATION EVENT DETECTED</p>}
-            {step >= 1 && <p>SESSION ESTABLISHED</p>}
-            {step >= 2 && <p>INTERNAL NETWORK ACCESS</p>}
-            <p>{BREACH_LINE}</p>
+            {hold && <p>De lijn buiten de poort wordt opgebouwd.</p>}
+            {!hold && step >= 0 && <p>AUTHENTICATION EVENT DETECTED</p>}
+            {!hold && step >= 1 && <p>SESSION ESTABLISHED</p>}
+            {!hold && step >= 2 && <p>INTERNAL NETWORK ACCESS</p>}
+            {!hold && <p>{BREACH_LINE}</p>}
           </div>
         )}
         {scene === "market" && (

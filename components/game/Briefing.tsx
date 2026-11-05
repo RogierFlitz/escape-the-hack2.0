@@ -188,8 +188,12 @@ export function Briefing({
   const [duration, setDuration] = useState(0);
   const [videoMissing, setVideoMissing] = useState(false);
   const current = CHAPTERS.find((item) => item.id === chapter) ?? CHAPTERS[0];
-  const caption = [...cues].reverse().find((cue) => time >= cue.t - 0.05)?.text ?? "";
+  const lead = 1.7;
+  const caption = [...cues].reverse().find((cue) => time + lead >= cue.t)?.text ?? "";
+  const shown = cues.filter((cue) => time + lead >= cue.t);
+  const activeLine = useRef<HTMLParagraphElement>(null);
   const progress = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
+  const showVideo = chapter === "briefing" && !videoMissing;
 
   useEffect(() => {
     let cancel = false;
@@ -207,10 +211,26 @@ export function Briefing({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    video.muted = !audio;
-  }, [audio]);
+    video.muted = true;
+    video.defaultMuted = true;
+    video.playbackRate = 1.2;
+  }, [showVideo, linked]);
+
+  useEffect(() => {
+    activeLine.current?.scrollIntoView({ block: "nearest" });
+  }, [caption]);
 
   const playedReplay = useRef(0);
+  const autoplayed = useRef(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!linked || !video || !showVideo || autoplayed.current) return;
+    autoplayed.current = true;
+    video.muted = true;
+    video.playbackRate = 1.2;
+    void video.play().then(() => setPaused(false)).catch(() => setPaused(true));
+  }, [showVideo, linked]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -218,15 +238,16 @@ export function Briefing({
     playedReplay.current = replay;
     video.currentTime = 0;
     setTime(0);
-    video.muted = !audio;
-    void video.play().catch(() => setPaused(true));
-  }, [replay, chapter, audio]);
+    video.muted = true;
+    video.playbackRate = 1.2;
+    void video.play().then(() => setPaused(false)).catch(() => setPaused(true));
+  }, [replay, chapter]);
 
   function togglePlay() {
     const video = videoRef.current;
     if (!video || videoMissing) return;
+    video.muted = true;
     if (video.paused) {
-      video.muted = !audio;
       void video.play().then(() => setPaused(false)).catch(() => setPaused(true));
       return;
     }
@@ -235,8 +256,6 @@ export function Briefing({
   }
 
   function toggleSound() {
-    const video = videoRef.current;
-    if (video) video.muted = audio;
     onToggleAudio();
   }
 
@@ -259,8 +278,6 @@ export function Briefing({
       />
     );
   }
-
-  const showVideo = chapter === "briefing" && !videoMissing;
 
   return (
     <section className="cb" data-screen="briefing" aria-label="Vertrouwelijke briefing">
@@ -291,8 +308,9 @@ export function Briefing({
             src={VIDEO_SRC}
             poster={POSTER_SRC}
             playsInline
-            preload="metadata"
-            muted={!audio}
+            preload="auto"
+            muted
+            autoPlay
             hidden={!showVideo}
             onError={() => setVideoMissing(true)}
             onTimeUpdate={(event) => setTime(event.currentTarget.currentTime)}
@@ -321,6 +339,13 @@ export function Briefing({
             </p>
           )}
           {showVideo && captions && caption && <p className="cb-cap" aria-live="polite">{skin(caption)}</p>}
+          {showVideo && captions && shown.length > 0 && (
+            <div className="cb-script" ref={scriptRef} aria-hidden="true">
+              {shown.map((line) => (
+                <p key={line.t} ref={line.text === caption ? activeLine : undefined} data-active={line.text === caption ? "true" : "false"}>{skin(line.text)}</p>
+              ))}
+            </div>
+          )}
           {showVideo && (
             <button
               type="button"

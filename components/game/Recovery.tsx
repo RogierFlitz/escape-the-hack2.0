@@ -156,12 +156,10 @@ export function RecoveryDesk({
           <span className="up">LOG online</span>
         </div>
         {cue && <p className="m4-cue"><b>Nu doen. </b>{cue.text}</p>}
-        {puzzleId === "ch4-symbols" && (
-          <details className="m4-nora">
-            <summary>NORA</summary>
-            <p>{noraRecovery}</p>
-          </details>
-        )}
+        <details className="m4-nora" open>
+          <summary>Uitleg</summary>
+          <p>{noraRecovery} {cue?.text}</p>
+        </details>
       </div>
       {training && onPriority && (
         <RecoveryAwareness priorityDone={priorityDone} priorityText={priorityText} busy={busy} onPriority={onPriority} />
@@ -322,7 +320,7 @@ function Files({
                 <small>{file.version} · {file.modified} · {asSector(sector, file.folder)}</small>
               </span>
               <span>
-                <i className={`m4-badge${file.readable ? " ok" : ""}`}>{file.readable ? "Leesbaar" : "Versleuteld"}</i>
+                <i className={`m4-badge${file.readable ? " ok" : ""}`}>{file.readable ? "Leesbaar" : "Op slot"}</i>
                 {damaged.includes(file.id) && <i className="m4-badge pick">Aangewezen</i>}
               </span>
             </button>
@@ -366,7 +364,7 @@ function Preview({ file, marking, marked, onToggle }: { file: VaultFile; marking
     <div className="m4-preview">
       <header>
         <h2>{file.name}</h2>
-        <i className={`m4-badge${file.readable ? " ok" : ""}`}>{file.readable ? "Leesbaar" : "Versleuteld"}</i>
+        <i className={`m4-badge${file.readable ? " ok" : ""}`}>{file.readable ? "Leesbaar" : "Op slot"}</i>
       </header>
       <div className="m4-view">
         {file.readable ? <Readable kind={kind} text={asSector(sector, file.preview)} /> : <Locked kind={kind} text={asSector(sector, file.preview)} />}
@@ -392,8 +390,8 @@ function Locked({ kind, text }: { kind: string; text: string }) {
       <div className="m4-lock">
         <LockIcon />
         <span>
-          <strong>Bestand is versleuteld</strong>
-          <p>Dit bestand kan nu niet worden gelezen. De controle komt niet overeen met een leesbare versie.</p>
+          <strong>Bestand is op slot</strong>
+          <p>Versleuteld betekent dat je de inhoud niet kunt lezen. Dit bestand hoort bij de schade. Een leesbaar bestand markeer je niet.</p>
         </span>
       </div>
       <Frame kind={kind} text={text} locked />

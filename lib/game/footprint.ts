@@ -70,7 +70,7 @@ export const sources: Source[] = [
     author: "S. Adler",
     when: "15 mrt",
     title: "Run-of-show",
-    body: "Run-of-show ligt klaar. Morgen wordt een lange dag met de bouwcrew.",
+    body: "Het draaiboek ligt op tafel. Op de foto is de planning leesbaar: Nexora Day, de Dokzaal, crew call om 07:30, en Helix Events voor vloer en crew. Morgen wordt een lange dag met de bouwcrew.",
     shot: "sheet",
   },
   {

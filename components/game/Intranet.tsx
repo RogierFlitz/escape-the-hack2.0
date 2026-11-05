@@ -188,7 +188,7 @@ const MAIL: Row[] = [
     date: "dinsdag 13 oktober 2026, 18:05",
     stamp: 800,
     excerpt: "We laden in via de zijingang. Vragen naar events@helix-events.nl.",
-    body: "Hoi Mara, ik ben S. Adler van Helix Events. De crew laadt morgenochtend in via de zijingang van de Dokzaal. Voor planning en wijzigingen blijft het adres events@helix-events.nl. Groet, S. Adler.",
+    body: "Hoi Mara, ik ben S. Adler van Helix Events. De crew laadt morgenochtend in via de zijingang van de Dokzaal. Vragen over de planning stuur je naar events@helix-events.nl. Groet, S. Adler.",
     headers: [
       { label: "Reply-To", value: "events@helix-events.nl" },
       { label: "Message-ID", value: "<aankomst@helix-events.nl>" },
@@ -739,6 +739,17 @@ function Mailbox({ investigation }: { investigation: Investigation }) {
             )}
             {folder === "drafts" ? <p className="ol-draft">Dit concept is nog niet verzonden.</p> : null}
             <p className="ol-body">{open.body}</p>
+            {open.id === "phish" && (
+              <div className="ol-phish">
+                <p>Dit bericht is nog niet beoordeeld. Gelezen betekent niet dat je al een keuze maakte.</p>
+                <ul>
+                  <li>Afzender: {open.address}. Het bekende adres van Helix is events@helix-events.nl.</li>
+                  <li>Druk in de tekst: vandaag nog bevestigen.</li>
+                  <li>Een bijlage die je niet had verwacht.</li>
+                </ul>
+                <p>Bijlage openen voert het bestand uit. Melden als verdacht is de veiligere keuze en levert 200 punten op. De aanval was al voorbereid, dus het incident start daarna toch. Jullie hebben het bestand dan niet geopend.</p>
+              </div>
+            )}
             {open.attachment && (
               <div className="ol-files">
                 <p>1 bijlage</p>

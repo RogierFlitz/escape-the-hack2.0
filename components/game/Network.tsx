@@ -143,7 +143,7 @@ export function NetworkDesk({
 
   return (
     <div className={`soc${glitch ? " glitch" : ""}`}>
-      {puzzleId === "ch3-logic" && <p className="soc-nora">{noraNetwork}</p>}
+      <p className="soc-nora">{noraNetwork} Richting op de kaart: van het werkstation naar de kluis. Authenticatie is de extra controle bij het inloggen. De kluis bewaart de back-ups.</p>
       <nav className="soc-tabs" aria-label="Netwerk">
         {tabs.map((item) => (
           <button key={item.id} className={section === item.id ? "on" : ""} type="button" onClick={() => setSection(item.id)}>

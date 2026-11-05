@@ -54,6 +54,8 @@ export function PlayApp({ code }: { code: string }) {
   const [sting, setSting] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
   const [dismissedHints, setDismissedHints] = useState<string[]>([]);
+  const [hintSheet, setHintSheet] = useState(true);
+  const [rescueAsk, setRescueAsk] = useState(false);
   const [inboxReady, setInboxReady] = useState(false);
   const synced = useRef(Date.now());
   const seenEvent = useRef("");
@@ -377,6 +379,17 @@ export function PlayApp({ code }: { code: string }) {
   const missionOne = snap.phase === "crisis" && missionId === 1 && !snap.finished;
   const missionTwo = spoken?.id === "m2" || (snap.phase === "crisis" && missionId === 2 && !snap.finished && !spoken);
 
+  function requestHint() {
+    if (!stagePuzzle) return;
+    if (stagePuzzle.hintLevel >= 3) {
+      if (stagePuzzle.coach.length > 0) return;
+      setRescueAsk(true);
+      return;
+    }
+    setHintSheet(true);
+    void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 });
+  }
+
   function beginBreach(report: boolean) {
     sessionStorage.setItem(`eth-hack-${code}`, report ? "report" : "open");
     sessionStorage.removeItem(`eth-cine-${code}`);
@@ -424,15 +437,7 @@ export function PlayApp({ code }: { code: string }) {
             rail={rail}
             hint={stagePuzzle && !stagePuzzle.solved ? { level: stagePuzzle.hintLevel, penalty: snap.session.hintPenalty ? snap.session.hintPenaltySec : 0, extra: stagePuzzle.hintLevel >= 3 && stagePuzzle.coach.length === 0 } : null}
             busy={busy}
-            onHint={() => {
-              if (!stagePuzzle) return;
-              if (stagePuzzle.hintLevel >= 3) {
-                if (stagePuzzle.coach.length > 0) return;
-                if (window.confirm("Extra hint vragen? Die kost geen tijd.")) void send("rescue", { puzzleId: stagePuzzle.id });
-                return;
-              }
-              void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 });
-            }}
+            onHint={requestHint}
             onAudio={() => { const next = !audio; setAudio(next); setSound(next); }}
             onFull={() => {
               if (!document.fullscreenElement) void document.documentElement.requestFullscreen?.();
@@ -469,13 +474,7 @@ export function PlayApp({ code }: { code: string }) {
             <div className="grow" />
             {snap.phase !== "office" && <div className="mono" style={{ fontSize: 16 }}>{snap.team.score} pt</div>}
             {stagePuzzle && !stagePuzzle.solved && snap.phase === "crisis" && (
-              <button className="icon-btn" type="button" disabled={busy || (stagePuzzle.hintLevel >= 3 && stagePuzzle.coach.length > 0)} onClick={() => {
-                if (stagePuzzle.hintLevel >= 3) {
-                  if (window.confirm("Extra hint vragen? Die kost geen tijd.")) void send("rescue", { puzzleId: stagePuzzle.id });
-                  return;
-                }
-                void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 });
-              }}>
+              <button className="icon-btn" type="button" disabled={busy || (stagePuzzle.hintLevel >= 3 && stagePuzzle.coach.length > 0)} onClick={requestHint}>
                 {stagePuzzle.hintLevel >= 3 ? (stagePuzzle.coach.length > 0 ? "Extra hint gegeven" : "Extra hint") : `Hints ${stagePuzzle.hintLevel}/3`}
               </button>
             )}
@@ -626,12 +625,6 @@ export function PlayApp({ code }: { code: string }) {
                     onOpenFile={openFile}
                     onSolve={(payload) => void send("solve", { puzzleId: stagePuzzle.id, payload })}
                   />
-                  {(stagePuzzle.hints.length > 0 || stagePuzzle.coach.length > 0) && (
-                    <div className="fp-hints">
-                      {stagePuzzle.coach.map((hint, index) => <div key={`extra-${index}`} className="token"><small>Extra hint</small>{hint}</div>)}
-                      {stagePuzzle.hints.map((hint) => <div key={hint} className="token"><small>Hint</small>{asSector(snap.session.sector, hint)}</div>)}
-                    </div>
-                  )}
                 </div>
               ) : stagePuzzle ? (
                 <div className="stack">
@@ -649,14 +642,20 @@ export function PlayApp({ code }: { code: string }) {
                     onOpenFile={openFile}
                     onSolve={(payload) => void send("solve", { puzzleId: stagePuzzle.id, payload })}
                   />
-                  {(stagePuzzle.hints.length > 0 || stagePuzzle.coach.length > 0) && (
-                    <div className="stack">
-                      {stagePuzzle.coach.map((hint, index) => <div key={`extra-${index}`} className="token"><small>Extra hint</small>{hint}</div>)}
-                      {stagePuzzle.hints.map((hint) => <div key={hint} className="token"><small>Hint</small>{asSector(snap.session.sector, hint)}</div>)}
-                    </div>
-                  )}
                 </div>
               ) : mode === "file" && file ? <FileNote file={file} onClose={closeFile} /> : <p>Geen opdracht geselecteerd.</p>}
+              {stagePuzzle && (stagePuzzle.hints.length > 0 || stagePuzzle.coach.length > 0) && (
+                hintSheet ? (
+                  <div className="hint-sheet" role="dialog" aria-label="Hints bij deze opdracht">
+                    <button className="hint-sheet-close" type="button" onClick={() => setHintSheet(false)}>Sluiten</button>
+                    <p className="kicker">Hint bij {stagePuzzle.title}</p>
+                    {stagePuzzle.coach.map((hint, index) => <div key={`extra-${index}`} className="token"><small>Extra hint</small>{hint}</div>)}
+                    {stagePuzzle.hints.map((hint, index) => <div key={hint} className="token"><small>Hint {index + 1} · {stagePuzzle.title}</small>{asSector(snap.session.sector, hint)}</div>)}
+                  </div>
+                ) : (
+                  <button className="hint-reopen" type="button" onClick={() => setHintSheet(true)}>Hints tonen</button>
+                )
+              )}
             </section>
             <aside className={`panel col rail-right${rail === "evidence" ? " open" : ""}`}>
               <p className="kicker">Inventaris</p>
@@ -680,13 +679,7 @@ export function PlayApp({ code }: { code: string }) {
                 <div className="pips" aria-hidden>
                   {[1, 2, 3].map((level) => <i key={level} className={stagePuzzle.hintLevel >= level ? "pip on" : "pip"} />)}
                 </div>
-                <button className="btn" type="button" disabled={busy || (stagePuzzle.hintLevel >= 3 && stagePuzzle.coach.length > 0)} onClick={() => {
-                  if (stagePuzzle.hintLevel >= 3) {
-                    if (window.confirm("Extra hint vragen? Die kost geen tijd.")) void send("rescue", { puzzleId: stagePuzzle.id });
-                    return;
-                  }
-                  void send("hint", { puzzleId: stagePuzzle.id, level: stagePuzzle.hintLevel + 1 });
-                }}>
+                <button className="btn" type="button" disabled={busy || (stagePuzzle.hintLevel >= 3 && stagePuzzle.coach.length > 0)} onClick={requestHint}>
                   {stagePuzzle.hintLevel >= 3 ? (stagePuzzle.coach.length > 0 ? "Extra hint gegeven" : "Extra hint") : `Hint${snap.session.hintPenalty ? ` · +${snap.session.hintPenaltySec}s` : ""}`}
                 </button>
               </>
@@ -724,6 +717,19 @@ export function PlayApp({ code }: { code: string }) {
         </div>
       )}
 
+      {rescueAsk && stagePuzzle && (
+        <div className="hint-pop" role="dialog" aria-label="Extra hint" onClick={() => setRescueAsk(false)}>
+          <article onClick={(event) => event.stopPropagation()}>
+            <p className="kicker">Extra hint</p>
+            <h2>{stagePuzzle.title}</h2>
+            <p>Deze hint noemt het onderdeel waar je nu aan werkt. Ze kost geen tijd. Het scherm erachter blijft bruikbaar zodra je dit venster sluit.</p>
+            <div className="row" style={{ marginTop: 16 }}>
+              <button className="btn btn-primary" type="button" onClick={() => { setRescueAsk(false); setHintSheet(true); void send("rescue", { puzzleId: stagePuzzle.id }); }}>Vraag de hint</button>
+              <button className="btn" type="button" onClick={() => setRescueAsk(false)}>Annuleren</button>
+            </div>
+          </article>
+        </div>
+      )}
       {inboxReady && <InstructorHint incoming={(snap.inbox ?? []).filter((item) => !dismissedHints.includes(item.id))} onClose={(id) => {
         setDismissedHints((current) => {
           const next = current.includes(id) ? current : [...current, id];
@@ -820,8 +826,8 @@ function InstructorHint({ incoming, onClose }: { incoming: { id: string; puzzle:
   }, [current?.id]);
   if (!current) return null;
   return (
-    <div className="hint-pop" role="dialog" aria-label="Hint van de instructeur">
-      <article>
+    <div className="hint-pop" role="dialog" aria-label="Hint van de instructeur" onClick={() => onClose(current.id)}>
+      <article onClick={(event) => event.stopPropagation()}>
         <button className="hint-x" type="button" aria-label="Hint sluiten" onClick={() => onClose(current.id)}>×</button>
         <p className="kicker">Hint van de instructeur</p>
         <h2>{current.puzzle}</h2>

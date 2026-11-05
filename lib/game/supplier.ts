@@ -1,5 +1,5 @@
 export const noraSupplier =
-  "Ik heb communicatie tussen Nexora en Helix Events veiliggesteld. Niet alle berichten zijn betrouwbaar. Vergelijk de beschikbare informatie, controleer de afzenders en reconstrueer wat er is gebeurd. Trek pas een conclusie wanneer jullie voldoende bewijs hebben.";
+  "Jullie zoeken welk bericht niet echt van Helix komt. Kijk niet alleen naar de naam. Vergelijk het volledige adres met events@helix-events.nl, let op haast en op een bijlage die je niet verwachtte. De vergelijking zet de oude planning naast de nieuwe: een andere maker of een extra regel is het risico.";
 
 export type Mail = {
   id: string;
