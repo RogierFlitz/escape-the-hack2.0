@@ -24,5 +24,5 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
       { status: 422 },
     );
   }
-  return NextResponse.json(snapshot);
+  return NextResponse.json({ ...snapshot, kade: result.note ?? null });
 }

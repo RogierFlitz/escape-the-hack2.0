@@ -2,6 +2,7 @@ import { decisionView, evalView, EVAL_IDS, LEGAL_NOTE, MISSION_LEARN, type GameM
 import { parseSector, sectorLine, type Sector } from "./sector";
 import { chapters, puzzles } from "./content";
 import { completedChapters, scoreBreakdown } from "../scoring";
+import { countsOnRoute, requiredPuzzleIds, routeOf } from "./route";
 import { crisisElapsedSec, teamRemainingSec } from "../time";
 import type { Session, Team, TeamStatus } from "../types";
 
@@ -84,6 +85,7 @@ export type TeamReport = {
   strengths: string[];
   improvements: string[];
   advice: Advice[];
+  conduct: { id: string; label: string; result: "veilig" | "onveilig" | "niet voorgelegd" }[];
 };
 
 export type BoardRow = {
@@ -173,10 +175,25 @@ function choiceLabel(id: string, choice: string) {
     .join(", ");
 }
 
-function missionCards(team: Team): MissionCard[] {
-  const current = chapters.find((chapter) => !chapter.puzzles.every((id) => team.solved.includes(id)))?.id ?? 6;
+const CASES = [
+  { id: "mfa", label: "MFA-verzoek" },
+  { id: "share", label: "Klantgegevens" },
+  { id: "tool", label: "Herstelprogramma" },
+] as const;
+
+function conductOf(session: Session, team: Team) {
+  if (routeOf(session) < 3) return [];
+  return CASES.map((item) => {
+    const record = team.awareness?.decisions.find((decision) => decision.id === item.id);
+    const result = !record ? "niet voorgelegd" as const : record.correct ? "veilig" as const : "onveilig" as const;
+    return { id: item.id, label: item.label, result };
+  });
+}
+
+function missionCards(team: Team, route: number): MissionCard[] {
+  const current = chapters.find((chapter) => !chapter.puzzles.filter((id) => countsOnRoute(route, id)).every((id) => team.solved.includes(id)))?.id ?? 6;
   return chapters.map((chapter) => {
-    const items = puzzles.filter((puzzle) => puzzle.chapterId === chapter.id);
+    const items = puzzles.filter((puzzle) => puzzle.chapterId === chapter.id && countsOnRoute(route, puzzle.id));
     const solved = items.filter((puzzle) => team.solved.includes(puzzle.id));
     const open = items.filter((puzzle) => !team.solved.includes(puzzle.id));
     const hinted = items.filter((puzzle) => (team.hints[puzzle.id] ?? 0) > 0);
@@ -347,7 +364,9 @@ function teamReport(session: Session, team: Team, now: number): TeamReport {
   const mode = session.mode ?? "escape";
   const score = scoreBreakdown(session, team, now);
   const clock = team.finishedAt && (team.status === "completed" || team.status === "failed") ? team.finishedAt : now;
-  const cards = missionCards(team);
+  const route = routeOf(session);
+  const conduct = conductOf(session, team);
+  const cards = missionCards(team, route);
   const points = advice(team, mode, cards);
   const strengths: string[] = [];
   if (team.status === "completed") strengths.push("Alle missies zijn afgerond.");
@@ -359,6 +378,9 @@ function teamReport(session: Session, team: Team, now: number): TeamReport {
     if (card.state === "afgerond" && card.hints === 0) strengths.push(`${card.title} afgerond zonder hint.`);
   }
   const improvements = points.filter((item) => item.kind === "gemeten").map((item) => `${item.topic}: ${item.trigger}`);
+  for (const item of conduct) {
+    if (item.result === "onveilig") improvements.push(`${item.label}: onveilige keuze, zonder blokkade.`);
+  }
   return {
     name: team.name,
     code: team.code,
@@ -374,13 +396,14 @@ function teamReport(session: Session, team: Team, now: number): TeamReport {
     extraSec: session.timeAdjustSec + (team.timeAdjustSec ?? 0),
     fails: team.fails,
     phish: team.breachOffsetSec === null ? "nog niet aan de beurt" : team.phishReported ? "gemeld" : "niet gemeld",
-    missionsDone: completedChapters(team.solved),
-    solved: team.solved.length,
-    total: puzzles.length,
+    missionsDone: completedChapters(team.solved, route),
+    solved: team.solved.filter((id) => countsOnRoute(route, id)).length,
+    total: requiredPuzzleIds(route).length,
     missions: cards,
     strengths: strengths.slice(0, 4),
     improvements: improvements.slice(0, 4),
     advice: points,
+    conduct,
   };
 }
 
@@ -524,6 +547,9 @@ export function resultsCsv(report: SessionReport, includeCodes: boolean) {
     "resterend_sec",
     ...missionHeaders,
   ];
+  if (report.teams.some((team) => team.conduct.length > 0)) {
+    header.push("mfa_verzoek", "klantgegevens", "herstelprogramma");
+  }
   const lines = [header.join(",")];
   for (const row of report.leaderboard) {
     const team = report.teams.find((item) => item.name === row.name && item.score === row.score);
@@ -550,6 +576,7 @@ export function resultsCsv(report: SessionReport, includeCodes: boolean) {
         row.elapsedSec,
         row.remainingSec,
         ...missionCells,
+        ...(team && team.conduct.length > 0 ? team.conduct.map((item) => item.result) : report.teams.some((item) => item.conduct.length > 0) ? ["", "", ""] : []),
       ].map(cell).join(","),
     );
   }

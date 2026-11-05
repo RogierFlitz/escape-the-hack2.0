@@ -104,6 +104,7 @@ export function TeamResult({ team, passRule, tieRule, disclaimer, modeNote, lega
           <span className={`rs-badge ${tone(team.outcome)}`}>{team.outcome}</span>
         </div>
         <div className="rs-score">{team.score} pt</div>
+        {team.conduct.length > 0 && <p className="rs-muted">De score telt de opdrachten van deze sessie. De drie keuzes staan apart en veranderen het puntentotaal niet.</p>}
         <p className="rs-muted">{modeNote}</p>
       </header>
       <nav className="rs-tabs rs-noprint" aria-label="Resultaten">
@@ -121,6 +122,9 @@ export function TeamResult({ team, passRule, tieRule, disclaimer, modeNote, lega
           <div className="rs-card"><small>Afgekeurde pogingen</small><strong>{team.fails}</strong><small>Niet per opdracht bewaard</small></div>
           <div className="rs-card"><small>Valse mail</small><strong>{team.phish}</strong></div>
           <div className="rs-card"><small>Missies</small><strong>{team.missionsDone}/6</strong><small>{team.solved}/{team.total} opdrachten</small></div>
+          {team.conduct.map((item) => (
+            <div className="rs-card" key={item.id}><small>{item.label}</small><strong>{item.result}</strong></div>
+          ))}
         </div>
         <article className="rs-note">
           <h2>Belangrijkste prestaties</h2>

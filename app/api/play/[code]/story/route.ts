@@ -19,5 +19,5 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
     if (result.error === "Code niet herkend.") return unknownCode();
     return NextResponse.json({ ok: false, error: result.error, snapshot }, { status: 400 });
   }
-  return NextResponse.json(snapshot);
+  return NextResponse.json({ ...snapshot, kade: result.note ?? null });
 }

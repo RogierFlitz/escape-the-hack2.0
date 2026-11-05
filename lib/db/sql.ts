@@ -78,6 +78,7 @@ const MIGRATIONS = [
   "ALTER TABLE sessions ADD COLUMN client_name TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE sessions ADD COLUMN event_date TEXT NOT NULL DEFAULT ''",
   "ALTER TABLE teams ADD COLUMN last_seen_at BIGINT",
+  "ALTER TABLE sessions ADD COLUMN play_route INTEGER NOT NULL DEFAULT 2",
 ];
 
 function migrateSqlite(db: DatabaseSync) {
@@ -155,19 +156,19 @@ async function postgres(url: string): Promise<Sql> {
   };
 }
 
-const globalSql = globalThis as unknown as { __ethSqlV5?: Promise<Sql> };
+const globalSql = globalThis as unknown as { __ethSqlV6?: Promise<Sql> };
 
 export function sql() {
-  if (!globalSql.__ethSqlV5) {
+  if (!globalSql.__ethSqlV6) {
     const url = readEnv("DATABASE_URL");
     if (readEnv("VERCEL") && !url.startsWith("postgres")) {
-      globalSql.__ethSqlV5 = Promise.reject(new Error("NO_STORE"));
+      globalSql.__ethSqlV6 = Promise.reject(new Error("NO_STORE"));
     } else {
-      globalSql.__ethSqlV5 = url && url.startsWith("postgres") ? postgres(url) : Promise.resolve(sqlite());
+      globalSql.__ethSqlV6 = url && url.startsWith("postgres") ? postgres(url) : Promise.resolve(sqlite());
     }
   }
-  return globalSql.__ethSqlV5.catch((error: unknown) => {
-    globalSql.__ethSqlV5 = undefined;
+  return globalSql.__ethSqlV6.catch((error: unknown) => {
+    globalSql.__ethSqlV6 = undefined;
     throw error;
   });
 }

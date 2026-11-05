@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { emptyAwareness } from "../lib/game/awareness";
 import { PUZZLE_IDS } from "../lib/game/content";
+import { requiredPuzzleIds } from "../lib/game/route";
 import { emptyStory } from "../lib/game/story";
 import { outcomeOf, playerReport, resultsCsv, sessionReport } from "../lib/game/results";
 import { scoreBreakdown } from "../lib/scoring";
@@ -26,6 +27,7 @@ const session: Session = {
   timeAdjustSec: 0,
   createdAt: 0,
   endedAt: null,
+  playRoute: 2,
 };
 
 function team(partial: Partial<Team> = {}): Team {
@@ -116,6 +118,36 @@ test("twaalf teams, bezig en mislukt, zonder verzonnen missietijd", () => {
   assert.equal(giftedReport.teams[0].extraSec, 600);
   assert.equal(resultsCsv(giftedReport, false).includes("extra_tijd_sec"), true);
   assert.equal(resultsCsv(giftedReport, false).includes("600"), true);
+  assert.equal(resultsCsv(giftedReport, false).includes("mfa_verzoek"), false);
+  assert.equal(report.teams[0]?.conduct.length, 0);
+  assert.equal(report.teams[0]?.total, 23);
+});
+
+test("nieuwe sessies rapporteren 20 opdrachten en de drie keuzes apart", () => {
+  const route = { ...session, playRoute: 3 as const };
+  const played = team({
+    name: "Nieuw",
+    status: "completed",
+    solved: [...requiredPuzzleIds(3)],
+    finishedAt: now,
+    phishReported: true,
+    awareness: {
+      ...emptyAwareness(),
+      decisions: [{ id: "mfa", choice: "approve", correct: false, attempts: 1 }],
+    },
+  });
+  const fresh = sessionReport(route, [played], now);
+  const row = fresh.teams[0];
+  assert.equal(row?.total, 20);
+  assert.equal(row?.solved, 20);
+  assert.equal(row?.conduct.find((item) => item.id === "mfa")?.result, "onveilig");
+  assert.equal(row?.conduct.find((item) => item.id === "share")?.result, "niet voorgelegd");
+  assert.equal(row?.score, scoreBreakdown(route, played, now).total);
+  assert.equal(resultsCsv(fresh, false).includes("mfa_verzoek"), true);
+  const historic = sessionReport(session, [team({ name: "Oud", status: "completed", solved: [...PUZZLE_IDS], finishedAt: now, phishReported: true })], now);
+  assert.equal(historic.teams[0]?.total, 23);
+  assert.equal(historic.teams[0]?.conduct.length, 0);
+  assert.equal(historic.teams[0]?.score, scoreBreakdown(session, team({ status: "completed", solved: [...PUZZLE_IDS], finishedAt: now, phishReported: true }), now).total);
 });
 
 test("een foutloze afronding krijgt algemene aanbevelingen, een gemiste mail een gemeten punt", () => {

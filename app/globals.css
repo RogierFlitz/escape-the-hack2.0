@@ -276,8 +276,11 @@ h1, h2, h3, p { margin: 0; }
   min-height: 24px;
   color: var(--amber);
   font-size: 14px;
+  line-height: 1.35;
+  max-width: 760px;
 }
 .note.good { color: var(--mint); }
+.note.voice { color: #f3d7c4; }
 .seal {
   display: inline-flex;
   align-items: center;
