@@ -14,7 +14,8 @@ import { finaleSessions } from "../lib/game/shutdown";
 import { applyStory, emptyStory, nextBeat } from "../lib/game/story";
 import { asSector } from "../lib/game/sector";
 import { narrateHoldMs } from "../components/game/narrate";
-import { allSolved, currentChapterId, scoreBreakdown } from "../lib/scoring";
+import { requiredPuzzleIds } from "../lib/game/route";
+import { allSolved, completedChapters, currentChapterId, scoreBreakdown } from "../lib/scoring";
 import { baseRemainingSec, teamRemainingSec } from "../lib/time";
 import type { Session, Team } from "../lib/types";
 
@@ -35,6 +36,7 @@ const session: Session = {
   timeAdjustSec: 0,
   createdAt: 0,
   endedAt: null,
+  playRoute: 2,
 };
 
 function team(partial: Partial<Team> = {}): Team {
@@ -263,9 +265,13 @@ test("NORA noemt situatie, doel en actie, KADE blijft bij twee zinnen", () => {
     assert.ok(sentences(hit).length <= 2, hit);
     assert.ok(sentences(miss).length <= 2, miss);
   }
-  for (const id of ["social", "backup", "access", "revoke", "backup-check"]) {
+  for (const id of ["social", "backup", "access", "revoke", "backup-check", "mfa", "share", "tool"]) {
     assert.ok(noraBrief(id), id);
-    assert.ok(kadeHit(id) && kadeMiss(id), id);
+    const hit = kadeHit(id);
+    const miss = kadeMiss(id);
+    assert.ok(hit && miss, id);
+    assert.ok(sentences(hit).length <= 2, hit);
+    assert.ok(sentences(miss).length <= 2, miss);
   }
   assert.equal(noraBrief("seals")?.doel, noraBrief("ch6-seals")?.doel);
   assert.equal(GUIDE_IDS.includes("ch1-bays"), true);
@@ -642,6 +648,51 @@ test("een tablet die nadenkt blijft online en een stille tablet wordt offline", 
   assert.equal(sceneVoice("m1:0"), null);
   assert.equal(mediaFile("bed-crisis"), null);
   assert.equal(mediaFile("kade-voice"), null);
+});
+
+test("route 3 onderzoekt eerst en telt de drie technische stappen niet", () => {
+  const early = PUZZLE_IDS.filter((id) => id.startsWith("ch1-") || id.startsWith("ch2-"));
+  const story = { ...emptyStory(), scenes: ["incident", "m1", "k1", "d1", "m2", "k2", "d2", "m3"] };
+  const opened = nextBeat(story, early, true, 3);
+  assert.equal(opened.kind, "case");
+  if (opened.kind === "case") assert.equal(opened.id, "mfa");
+  const logic = nextBeat({ ...story, scenes: [...story.scenes, "case-mfa"] }, early, true, 3);
+  assert.equal(logic.kind, "puzzle");
+  if (logic.kind === "puzzle") assert.equal(logic.puzzleId, "ch3-logic");
+  const kept = nextBeat(story, early, true, 2);
+  assert.equal(kept.kind, "puzzle");
+  if (kept.kind === "puzzle") assert.equal(kept.puzzleId, "ch3-logic");
+  const ch3 = ["ch3-logic", "ch3-path", "ch3-boot"];
+  assert.equal(completedChapters([...early, ...ch3], 3), 3);
+  assert.equal(completedChapters([...early, ...ch3], 2), 2);
+  assert.equal(currentChapterId([...early, ...ch3], 3), 4);
+  assert.equal(currentChapterId([...early, ...ch3], 2), 3);
+  const shareStory = { ...emptyStory(), scenes: [...story.scenes, "case-mfa", "k3", "d3", "m4"] };
+  const share = nextBeat(shareStory, [...early, ...ch3], true, 3);
+  assert.equal(share.kind, "case");
+  if (share.kind === "case") assert.equal(share.id, "share");
+  const tool = nextBeat(
+    { ...shareStory, scenes: [...shareStory.scenes, "case-share"] },
+    [...early, ...ch3, "ch4-symbols"],
+    true,
+    3,
+  );
+  assert.equal(tool.kind, "case");
+  if (tool.kind === "case") assert.equal(tool.id, "tool");
+  const required = requiredPuzzleIds(3);
+  assert.equal(required.length, 20);
+  assert.equal(required.includes("ch3-cables"), false);
+  assert.equal(required.includes("ch4-rotor"), false);
+  const done = team({
+    status: "completed",
+    solved: [...required, "ch3-cables", "ch4-sequence", "ch4-rotor"],
+    finishedAt: 1_000_000 + 600_000,
+  });
+  const score = scoreBreakdown({ ...session, playRoute: 3 }, done, 1_000_000 + 3_000_000);
+  assert.equal(score.puzzlePoints, 20 * 100);
+  assert.equal(score.chapterBonus, 6 * 150);
+  const legacy = scoreBreakdown(session, team({ status: "completed", solved: [...PUZZLE_IDS], finishedAt: 1_000_000 + 600_000 }), 1_000_000 + 3_000_000);
+  assert.equal(legacy.puzzlePoints, 23 * 100);
 });
 
 test("de verteller houdt een zin lang genoeg aan om hem rustig uit te spreken", () => {

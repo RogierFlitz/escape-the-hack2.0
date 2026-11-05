@@ -6,6 +6,7 @@ import { chapters, puzzleCues } from "@/lib/game/content";
 import { noraBrief } from "@/lib/game/guide";
 import { asSector, sectorLine } from "@/lib/game/sector";
 import { SectorProvider, useSector } from "./SectorSkin";
+import { countsOnRoute } from "@/lib/game/route";
 import { dossier, emptyStory, failLines, missionTitle, nextBeat, noraNote, speech, winLines } from "@/lib/game/story";
 import { savedOfficePieces } from "./Intranet";
 import type { PlayFile, PlaySnapshot } from "@/lib/types";
@@ -20,6 +21,7 @@ import { KadeTransmission, NoraStrip } from "./Kade";
 import { OfficeDesk } from "./OfficeDesk";
 import { OriginPrologue } from "./Origin";
 import { AttackCine } from "./AttackCine";
+import { IncidentCase } from "./IncidentCase";
 import { PuzzleStage } from "./puzzles";
 import { BackupBoard, SocialBoard } from "./StoryBoards";
 import { FinaleAlerts, RestoreCine, ShutdownDesk } from "./Shutdown";
@@ -201,7 +203,7 @@ export function PlayApp({ code }: { code: string }) {
     if (!snap || snap.phase !== "crisis" || snap.finished) return;
     const currentStory = snap.story ?? emptyStory();
     const solved = snap.puzzles.filter((item) => item.solved).map((item) => item.id);
-    const currentBeat = nextBeat(currentStory, solved, snap.team.phishReported);
+    const currentBeat = nextBeat(currentStory, solved, snap.team.phishReported, snap.session.playRoute);
     if (currentBeat.kind === "transmission" || currentBeat.kind === "discovery") return;
     const id = currentBeat.kind === "social" ? 1 : currentBeat.kind === "backup" ? 4 : currentBeat.kind === "finale" ? 6 : currentBeat.kind === "puzzle" ? (snap.puzzles.find((item) => item.id === currentBeat.puzzleId)?.chapterId ?? snap.chapter.id) : snap.chapter.id;
     const key = `eth-sting-${code}`;
@@ -371,10 +373,11 @@ export function PlayApp({ code }: { code: string }) {
   const priority = awareness.decisions.find((item) => item.id === "priority");
   const priorityText = priority ? gradeDecision("priority", priority.choice)?.explanation ?? "" : "";
   const solvedIds = snap.puzzles.filter((item) => item.solved).map((item) => item.id);
-  const beat = nextBeat(story, solvedIds, snap.team.phishReported);
+  const route = snap.session.playRoute === 3 ? 3 : 2;
+  const beat = nextBeat(story, solvedIds, snap.team.phishReported, route);
   const spoken = beat.kind === "transmission" || beat.kind === "discovery" ? speech(beat.id, reported) : null;
-  const missionId = beat.kind === "social" ? 1 : beat.kind === "backup" ? 4 : beat.kind === "finale" ? 6 : beat.kind === "puzzle" ? (snap.puzzles.find((item) => item.id === beat.puzzleId)?.chapterId ?? snap.chapter.id) : beat.kind === "transmission" || beat.kind === "discovery" ? Number(beat.id.replace(/\D/g, "")) || 1 : snap.chapter.id;
-  const missionSteps = snap.puzzles.filter((item) => item.chapterId === missionId);
+  const missionId = beat.kind === "social" ? 1 : beat.kind === "backup" ? 4 : beat.kind === "finale" ? 6 : beat.kind === "case" ? (beat.id === "mfa" ? 3 : 4) : beat.kind === "puzzle" ? (snap.puzzles.find((item) => item.id === beat.puzzleId)?.chapterId ?? snap.chapter.id) : beat.kind === "transmission" || beat.kind === "discovery" ? Number(beat.id.replace(/\D/g, "")) || 1 : snap.chapter.id;
+  const missionSteps = snap.puzzles.filter((item) => item.chapterId === missionId && countsOnRoute(route, item.id));
   const lessons = dossier(story);
   const finaleStep = beat.kind === "finale" ? beat.step : beat.kind === "puzzle" && beat.puzzleId === "ch6-seals" ? "seals" as const : beat.kind === "puzzle" && beat.puzzleId === "ch6-shutdown" ? "shutdown" as const : null;
   const stagePuzzle = beat.kind === "puzzle" ? snap.puzzles.find((item) => item.id === beat.puzzleId) ?? null : null;
@@ -543,7 +546,7 @@ export function PlayApp({ code }: { code: string }) {
             <aside className={`panel col rail-left${rail === "mission" ? " open" : ""}`}>
               <p className="kicker">{missionTitle(missionId)}</p>
               {snap.session.sector && snap.session.sector !== "general" && <p className="muted">{sectorLine(snap.session.sector)}</p>}
-              <p className="muted">Nu: {stagePuzzle ? (noraBrief(stagePuzzle.id)?.doel ?? puzzleCues[stagePuzzle.id]?.text) : beat.kind === "finale" ? (noraBrief(beat.step)?.doel ?? puzzleCues[beat.step]?.text) : beat.kind === "social" ? (noraBrief("social")?.doel ?? "Kies vijf openbare sporen.") : beat.kind === "backup" ? (noraBrief("backup")?.doel ?? "Vergelijk de kopieën en kies er één.") : spoken?.title ?? "Volg de opdracht op dit scherm."}</p>
+              <p className="muted">Nu: {stagePuzzle ? (noraBrief(stagePuzzle.id)?.doel ?? puzzleCues[stagePuzzle.id]?.text) : beat.kind === "case" ? (noraBrief(beat.id)?.doel ?? "Onderzoek het bewijs en kies.") : beat.kind === "finale" ? (noraBrief(beat.step)?.doel ?? puzzleCues[beat.step]?.text) : beat.kind === "social" ? (noraBrief("social")?.doel ?? "Kies vijf openbare sporen.") : beat.kind === "backup" ? (noraBrief("backup")?.doel ?? "Vergelijk de kopieën en kies er één.") : spoken?.title ?? "Volg de opdracht op dit scherm."}</p>
               <div className="list" style={{ marginTop: 10 }}>
                 {missionSteps.map((item) => (
                   <div key={item.id} className={`task${item.id === stagePuzzle?.id ? " on" : ""}${item.solved ? " done" : ""}`}>
@@ -596,6 +599,8 @@ export function PlayApp({ code }: { code: string }) {
                     void send("story", { scene: spoken.id });
                   }}
                 />
+              ) : beat.kind === "case" ? (
+                <IncidentCase id={beat.id} busy={busy} onSubmit={(choice, opened) => void send("case", { id: beat.id, choice, opened })} />
               ) : beat.kind === "social" ? (
                 <SocialBoard busy={busy} onSubmit={(ids) => void send("story", { social: ids })} />
               ) : beat.kind === "backup" ? (

@@ -80,7 +80,7 @@ function solvedIds(current: PlaySnapshot) {
   return current.puzzles.filter((puzzle) => puzzle.solved).map((puzzle) => puzzle.id);
 }
 
-async function openSession(name: string, teams: string[], mode: "escape" | "awareness" | "nis2") {
+async function openSession(name: string, teams: string[], mode: "escape" | "awareness" | "nis2", playRoute: 2 | 3 = 2) {
   const created = await actions.createSession({
     name,
     durationSec: 3600,
@@ -88,6 +88,7 @@ async function openSession(name: string, teams: string[], mode: "escape" | "awar
     hintPenaltySec: 30,
     teamNames: teams,
     mode,
+    playRoute,
   });
   return created;
 }
@@ -96,8 +97,8 @@ async function stepStory(code: string, mode: "escape" | "awareness" | "nis2") {
   for (let guard = 0; guard < 80; guard += 1) {
     const current = await snap(code);
     if (current.finished) return current;
-    const beat = nextBeat(current.story ?? emptyStory(), solvedIds(current), current.team.phishReported);
-    if (beat.kind === "puzzle" || beat.kind === "finale" || beat.kind === "done") return current;
+    const beat = nextBeat(current.story ?? emptyStory(), solvedIds(current), current.team.phishReported, current.session.playRoute);
+    if (beat.kind === "puzzle" || beat.kind === "finale" || beat.kind === "done" || beat.kind === "case") return current;
     if (beat.kind === "backup") {
       const result = await actions.saveStory(code, { backup: "kluis-nacht" });
       if ("error" in result) throw new Error(result.error);
@@ -169,8 +170,23 @@ async function playThrough(code: string, mode: "escape" | "awareness" | "nis2") 
   for (let guard = 0; guard < 80; guard += 1) {
     const current = await stepStory(code, mode);
     if (current.finished) return current;
-    const beat = nextBeat(current.story ?? emptyStory(), solvedIds(current), current.team.phishReported);
+    const beat = nextBeat(current.story ?? emptyStory(), solvedIds(current), current.team.phishReported, current.session.playRoute);
     if (beat.kind === "done") return await snap(code);
+    if (beat.kind === "case") {
+      const closed = await actions.saveCase(code, beat.id, "ignore", false);
+      assert.equal("error" in closed, true);
+      const fails = (await snap(code)).team.fails;
+      const wrongChoice = beat.id === "mfa" ? "approve" : beat.id === "share" ? "send" : "run";
+      const wrong = await actions.saveCase(code, beat.id, wrongChoice, true);
+      assert.equal("error" in wrong, false);
+      const marked = await snap(code);
+      assert.equal(marked.story.scenes.includes(`case-${beat.id}`), true);
+      assert.equal(marked.awareness.decisions.find((item) => item.id === beat.id)?.correct, false);
+      assert.equal(marked.team.fails, fails);
+      const again = await actions.saveCase(code, beat.id, wrongChoice, true);
+      assert.equal("error" in again, true);
+      continue;
+    }
     if (beat.kind === "finale") {
       await playFinale(code, beat.step);
       continue;
@@ -632,4 +648,27 @@ test("na drie hints kan een vastgelopen team nog één extra hint krijgen", asyn
   assert.equal(after.team.score, before.team.score);
   assert.equal(after.progress.solved, 0);
   assert.equal(after.team.status, "playing");
+});
+
+test("route 3 speelt de drie onderzoeken en blijft doorlopen na een foute keuze", async () => {
+  await load();
+  for (const mode of ["escape", "awareness", "nis2"] as const) {
+    const created = await openSession(`Route ${mode}`, ["Ploeg"], mode, 3);
+    const code = created.teams[0].code;
+    await actions.controlSession(created.session.id, "start");
+    await actions.triggerBreach(code, true);
+    await actions.saveStory(code, { scene: "incident" });
+    const finished = await playThrough(code, mode);
+    assert.equal(finished.finished?.outcome, "completed");
+    assert.equal(finished.progress.total, 20);
+    assert.equal(finished.progress.solved, 20);
+    assert.equal(finished.puzzles.find((item) => item.id === "ch3-cables")?.solved, false);
+    assert.equal(finished.puzzles.find((item) => item.id === "ch4-sequence")?.solved, false);
+    assert.equal(finished.puzzles.find((item) => item.id === "ch4-rotor")?.solved, false);
+    assert.equal(finished.inventory.some((item) => item.id === "SEAL"), true);
+    assert.equal(finished.story.scenes.includes("case-mfa"), true);
+    assert.equal(finished.story.scenes.includes("case-share"), true);
+    assert.equal(finished.story.scenes.includes("case-tool"), true);
+    assert.equal(finished.awareness.decisions.find((item) => item.id === "mfa")?.correct, false);
+  }
 });

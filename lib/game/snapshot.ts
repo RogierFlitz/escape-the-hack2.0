@@ -2,6 +2,7 @@ import "server-only";
 import { getByCode, getSession, listTimeGrants, saveTeam } from "../db/store";
 import { lanHosts } from "../net";
 import { allSolved, completedChapters, currentChapterId, scoreBreakdown } from "../scoring";
+import { countsOnRoute, requiredPuzzleIds, routeOf } from "./route";
 import { baseRemainingSec, crisisElapsedSec, inOffice, teamRemainingSec } from "../time";
 import type { AdminSnapshot, PlaySnapshot, Session, Team } from "../types";
 import { chapters, files, puzzleCues, puzzles, tokenLabel } from "./content";
@@ -11,8 +12,6 @@ import { hintText, rescueHint } from "./hints";
 import { emptyAwareness } from "./awareness";
 import { presenceOf } from "./presence";
 import { emptyStory, lastTransmission, missionReady } from "./story";
-
-const TOTAL = puzzles.length;
 
 function instructorInbox(team: Team) {
   const notes: { id: string; puzzle: string; text: string }[] = [];
@@ -85,7 +84,9 @@ export async function playSnapshot(code: string): Promise<PlaySnapshot | null> {
 }
 
 export function present(session: Session, team: Team, teams: Team[], now: number): PlaySnapshot {
-  const chapterId = currentChapterId(team.solved);
+  const route = routeOf(session);
+  const required = requiredPuzzleIds(route);
+  const chapterId = currentChapterId(team.solved, route);
   const chapter = chapters.find((item) => item.id === chapterId) ?? chapters[0];
   const score = liveScore(session, team, now);
   const ranked = [...teams].sort((a, b) => liveScore(session, b, now).total - liveScore(session, a, now).total || a.name.localeCompare(b.name));
@@ -129,16 +130,21 @@ export function present(session: Session, team: Team, teams: Team[], now: number
       mode: session.mode ?? "escape",
       sector: session.sector ?? "general",
       clientName: session.clientName ?? "",
+      playRoute: route === 3 ? 3 : 2,
     },
     chapter: { id: chapter.id, title: chapter.title, subtitle: chapter.subtitle, index: chapter.id, total: chapters.length },
-    progress: { solved: team.solved.length, total: TOTAL, chaptersDone: completedChapters(team.solved) },
+    progress: {
+      solved: team.solved.filter((id) => required.includes(id)).length,
+      total: required.length,
+      chaptersDone: completedChapters(team.solved, route),
+    },
     puzzles: puzzles.map((puzzle) => {
       const level = Math.max(team.hints[puzzle.id] ?? 0, team.instructorHints[puzzle.id] ?? 0);
       const solved = team.solved.includes(puzzle.id);
       return {
         ...puzzle,
         solved,
-        available: solved || (puzzle.chapterId === chapterId && missionReady(team.story ?? emptyStory(), team.solved, puzzle.id) === null),
+        available: countsOnRoute(route, puzzle.id) && (solved || (puzzle.chapterId === chapterId && missionReady(team.story ?? emptyStory(), team.solved, puzzle.id, route) === null)),
         hintLevel: level,
         hints: hintText(puzzle.id, level),
         coach: (team.coach ?? []).filter((item) => item.puzzleId === puzzle.id).map((item) => item.text),
@@ -152,7 +158,7 @@ export function present(session: Session, team: Team, teams: Team[], now: number
     leaderboard: ranked.map((item) => ({
       name: item.name,
       score: liveScore(session, item, now).total,
-      chapter: currentChapterId(item.solved),
+      chapter: currentChapterId(item.solved, routeOf(session)),
       status: item.status,
     })),
     score,
@@ -172,9 +178,10 @@ export async function adminSnapshot(sessionId: string): Promise<AdminSnapshot | 
     lanHosts: lanHosts(),
     session: { ...found.session, baseRemainingSec: Math.max(0, baseRemainingSec(found.session, now)) },
     teams: ranked.map((team, index) => {
-      const chapter = currentChapterId(team.solved);
+      const route = routeOf(found.session);
+      const chapter = currentChapterId(team.solved, route);
       const office = inOffice(team);
-      const open = puzzles.find((puzzle) => puzzle.chapterId <= chapter && !team.solved.includes(puzzle.id));
+      const open = puzzles.find((puzzle) => countsOnRoute(route, puzzle.id) && puzzle.chapterId <= chapter && !team.solved.includes(puzzle.id));
       const idle = now - team.lastProgressAt > 5 * 60 * 1000;
       return {
         id: team.id,
@@ -184,8 +191,8 @@ export async function adminSnapshot(sessionId: string): Promise<AdminSnapshot | 
         score: scoreBreakdown(found.session, team, now).total,
         rank: index + 1,
         chapter,
-        solved: team.solved.length,
-        total: TOTAL,
+        solved: team.solved.filter((id) => countsOnRoute(route, id)).length,
+        total: requiredPuzzleIds(route).length,
         hints: Object.values(team.hints).reduce((sum, level) => sum + level, 0),
         instructorHints: Object.values(team.instructorHints).reduce((sum, level) => sum + level, 0),
         penaltySec: team.penaltySec,
@@ -217,6 +224,6 @@ export async function adminSnapshot(sessionId: string): Promise<AdminSnapshot | 
   };
 }
 
-export function everyoneDone(teams: Team[]) {
-  return teams.length > 0 && teams.every((team) => team.status === "completed" || team.status === "failed" || allSolved(team.solved));
+export function everyoneDone(teams: Team[], route = 2) {
+  return teams.length > 0 && teams.every((team) => team.status === "completed" || team.status === "failed" || allSolved(team.solved, route));
 }

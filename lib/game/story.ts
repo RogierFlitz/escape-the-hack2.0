@@ -1,5 +1,6 @@
 import { chapters } from "./content";
 import { kadeHit, kadeMiss } from "./guide";
+import { countsOnRoute } from "./route";
 
 export type StoryState = {
   scenes: string[];
@@ -462,21 +463,23 @@ export type Beat =
   | { kind: "backup" }
   | { kind: "finale"; step: "access" | "revoke" | "backup-check" }
   | { kind: "puzzle"; puzzleId: string }
+  | { kind: "case"; id: "mfa" | "share" | "tool" }
   | { kind: "done" };
 
-function puzzlesOf(id: number) {
-  return chapters.find((chapter) => chapter.id === id)?.puzzles ?? [];
+function puzzlesOf(id: number, route = 2) {
+  const puzzles = chapters.find((chapter) => chapter.id === id)?.puzzles ?? [];
+  return puzzles.filter((puzzle) => countsOnRoute(route, puzzle));
 }
 
-function missionCleared(solved: string[], id: number) {
-  return puzzlesOf(id).every((puzzle) => solved.includes(puzzle));
+function missionCleared(solved: string[], id: number, route = 2) {
+  return puzzlesOf(id, route).every((puzzle) => solved.includes(puzzle));
 }
 
-export function nextBeat(story: StoryState, solved: string[], _reported = false): Beat {
+export function nextBeat(story: StoryState, solved: string[], _reported = false, route = 2): Beat {
   if (story.replay && speech(story.replay, false)) return { kind: "transmission", id: story.replay };
   if (!story.scenes.includes("incident")) return { kind: "transmission", id: "incident" };
   for (const chapter of chapters) {
-    if (chapter.id > 1 && !missionCleared(solved, chapter.id - 1)) return { kind: "done" };
+    if (chapter.id > 1 && !missionCleared(solved, chapter.id - 1, route)) return { kind: "done" };
     if (chapter.id > 1 && !story.scenes.includes(`d${chapter.id - 1}`)) return { kind: "discovery", id: `d${chapter.id - 1}` };
     if (!story.scenes.includes(`m${chapter.id}`)) return { kind: "transmission", id: `m${chapter.id}` };
     if (
@@ -504,7 +507,24 @@ export function nextBeat(story: StoryState, solved: string[], _reported = false)
       if (!solved.includes("ch6-shutdown")) return { kind: "puzzle", puzzleId: "ch6-shutdown" };
       return { kind: "done" };
     }
-    const open = chapter.puzzles.find((puzzle) => !solved.includes(puzzle));
+    const required = puzzlesOf(chapter.id, route);
+    if (route >= 3 && chapter.id === 3 && !story.scenes.includes("case-mfa") && !required.some((id) => solved.includes(id))) {
+      return { kind: "case", id: "mfa" };
+    }
+    if (route >= 3 && chapter.id === 4 && !story.scenes.includes("case-share") && !required.some((id) => solved.includes(id))) {
+      return { kind: "case", id: "share" };
+    }
+    if (
+      route >= 3 &&
+      chapter.id === 4 &&
+      solved.includes("ch4-symbols") &&
+      !story.scenes.includes("case-tool") &&
+      !solved.includes("ch4-backup") &&
+      !solved.includes("ch4-decode")
+    ) {
+      return { kind: "case", id: "tool" };
+    }
+    const open = required.find((puzzle) => !solved.includes(puzzle));
     if (open) return { kind: "puzzle", puzzleId: open };
     if (chapter.id === 4 && !story.backup) return { kind: "backup" };
     if (chapter.id === 1 && !story.scenes.includes("k1") && !story.scenes.includes("d1")) {
@@ -533,8 +553,8 @@ function sameSet(left: string[], right: readonly string[]) {
   return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
-export function applyStory(story: StoryState, solved: string[], reported: boolean, input: StoryInput): { story: StoryState; note?: string } | { error: string } {
-  const beat = nextBeat(story, solved, reported);
+export function applyStory(story: StoryState, solved: string[], reported: boolean, input: StoryInput, route = 2): { story: StoryState; note?: string } | { error: string } {
+  const beat = nextBeat(story, solved, reported, route);
   const next = { ...story, scenes: [...story.scenes], finale: [...story.finale] };
   if (input.scene) {
     if (story.replay === input.scene) {
@@ -582,16 +602,20 @@ export function applyStory(story: StoryState, solved: string[], reported: boolea
   return { error: "Geen verhaalactie." };
 }
 
-export function missionReady(story: StoryState, solved: string[], puzzleId: string) {
+export function missionReady(story: StoryState, solved: string[], puzzleId: string, route = 2) {
   const chapter = chapters.find((item) => item.puzzles.includes(puzzleId as never));
   if (!chapter) return "Onbekende opdracht.";
+  if (!countsOnRoute(route, puzzleId)) return "Deze stap zit niet in deze sessie.";
   if (!story.scenes.includes(`m${chapter.id}`)) return "KADE heeft deze missie nog niet geopend.";
+  if (route >= 3 && chapter.id === 3 && !story.scenes.includes("case-mfa")) return "Bekijk eerst de inlogmelding.";
+  if (route >= 3 && chapter.id === 4 && !story.scenes.includes("case-share")) return "Bekijk eerst het verzoek om de lijst.";
+  if (route >= 3 && (puzzleId === "ch4-backup" || puzzleId === "ch4-decode") && !story.scenes.includes("case-tool")) return "Bekijk eerst het herstelprogramma.";
   if (chapter.id >= 5 && !story.backup) return "Kies eerst de schone back-up.";
   if (puzzleId === "ch6-seals" && (!story.finale.includes("access") || !story.finale.includes("revoke"))) {
     return "Trek eerst de sessie van KADE in.";
   }
   if (puzzleId === "ch6-shutdown" && !story.finale.includes("backup-check")) return "Controleer eerst de back-up.";
-  if (chapter.id > 1 && !missionCleared(solved, chapter.id - 1)) return "Deze laag is nog vergrendeld.";
+  if (chapter.id > 1 && !missionCleared(solved, chapter.id - 1, route)) return "Deze laag is nog vergrendeld.";
   return null;
 }
 

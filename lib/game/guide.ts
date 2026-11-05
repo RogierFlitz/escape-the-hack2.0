@@ -154,6 +154,21 @@ const briefs: Record<string, NoraBrief> = {
     doel: "Sluit het incident in de volgorde waarin jullie het ontdekten.",
     actie: "Zet de vondsten op volgorde en bevestig de afsluiting.",
   },
+  mfa: {
+    situatie: "Er komt een verzoek om een aanmelding goed te keuren. Jullie zijn zelf niet aan het inloggen.",
+    doel: "Bepaal of dat verzoek veilig is.",
+    actie: "Open de melding. Kijk naar het account en de plaats. Kies daarna.",
+  },
+  share: {
+    situatie: "Iemand vraagt vandaag nog om de klantenlijst.",
+    doel: "Bepaal of je die lijst deelt.",
+    actie: "Open het bericht. Kijk naar het verzoek en het adres. Kies daarna.",
+  },
+  tool: {
+    situatie: "De bestanden lezen niet. Er ligt een programma dat belooft ze terug te zetten.",
+    doel: "Bepaal of je dat programma start.",
+    actie: "Open het aanbod. Kijk wie het maakte en wat het vraagt. Kies daarna.",
+  },
 };
 
 const hits: Record<string, string> = {
@@ -185,6 +200,9 @@ const hits: Record<string, string> = {
   "ch6-seals": "KADE: Herstel zonder de systemen vast te zetten laat mij terugkomen. Het signaal is een token op het systeem dat daarbij hoort.",
   "backup-check": "KADE: Een leesbaar bestand voelt als winst, ook als een deellink nog openstaat. Het signaal is een lijn naar buiten die je nog niet hebt gesloten.",
   "ch6-shutdown": "KADE: De aanval stopte niet bij het eerste spoor. Het signaal is de volgorde: eerst wat ik wist, dan hoe ik binnenkwam, dan wat jullie sloten.",
+  mfa: "KADE: Een verzoek dat je niet zelf startte, is mijn tweede sleutel. Het signaal is een account en een plaats die niet bij jullie werk horen.",
+  share: "KADE: Haast en een bekende afdeling moesten de lijst de deur uit krijgen. Het signaal is een verzoek dat je niet verwachtte, via een adres dat je niet al gebruikte.",
+  tool: "KADE: Ik bied hulp op het moment dat de bestanden niet meer lezen. Het signaal is een programma dat je niet kent en dat extra rechten vraagt.",
 };
 
 const misses: Record<string, string> = {
@@ -216,6 +234,9 @@ const misses: Record<string, string> = {
   "ch6-seals": "KADE: Een token op het verkeerde systeem zet niets vast. Elk systeem vraagt het token dat daarbij past.",
   "backup-check": "Aanvaller: Een open deellink laat de planning leesbaar voor wie de link heeft. Die hoort dicht bij een schone afsluiting.",
   "ch6-shutdown": "KADE: De afsluiting is de volgorde van wat jullie vonden. Een andere volgorde vertelt een ander incident.",
+  mfa: "KADE: Goedkeuren of laten liggen houdt de deur open. Het signaal was dat jullie zelf niet aan het inloggen waren.",
+  share: "KADE: De lijst was het doel, niet de beleefdheid. Het signaal is haast plus een afzender die je niet eerder gebruikte.",
+  tool: "KADE: Starten haalt mij opnieuw binnen. Het signaal is een onbekende maker.",
 };
 
 export function noraBrief(id: string): NoraBrief | null {

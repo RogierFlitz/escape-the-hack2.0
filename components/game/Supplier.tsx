@@ -525,8 +525,9 @@ function MailDossier({
         })}
       </div>
       <button className="btn sp-go" type="button" disabled={busy || solved || !ready} onClick={onSolve}>
-        Conclusie vastleggen
+        {ready || solved ? "Conclusie vastleggen" : "Selecteer eerst één bericht en twee bronnen."}
       </button>
+      {!ready && !solved && <p className="sp-quiet">Selecteer eerst één bericht en twee bronnen.</p>}
     </div>
   );
 }

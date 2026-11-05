@@ -25,6 +25,7 @@ type SessionRow = {
   sector?: string | null;
   client_name?: string | null;
   event_date?: string | null;
+  play_route?: number | null;
 };
 
 type TeamRow = {
@@ -99,6 +100,7 @@ function sessionOf(row: SessionRow): Session {
     sector: parseSector(row.sector),
     clientName: String(row.client_name ?? ""),
     eventDate: String(row.event_date ?? ""),
+    playRoute: Number(row.play_route) === 3 ? 3 : 2,
   };
 }
 
@@ -129,7 +131,7 @@ function teamOf(row: TeamRow): Team {
   };
 }
 
-const SESSION_COLS = `id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector, client_name, event_date`;
+const SESSION_COLS = `id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector, client_name, event_date, play_route`;
 const TEAM_COLS = `id, session_id, name, code, status, solved_json, hints_json, instructor_hints_json, inventory_json, events_seen_json, penalty_sec, fails, finished_at, updated_at, last_progress_at, last_seen_at, breach_offset_sec, phish_reported, story_json, awareness_json, time_adjust_sec, coach_json`;
 
 export async function listSessions() {
@@ -205,6 +207,7 @@ export async function createSession(input: {
   sector?: Sector;
   clientName?: string;
   eventDate?: string;
+  playRoute?: 2 | 3;
 }) {
   const db = await sql();
   const now = Date.now();
@@ -225,10 +228,11 @@ export async function createSession(input: {
     sector: input.sector ?? "general",
     clientName: input.clientName ?? "",
     eventDate: input.eventDate ?? "",
+    playRoute: input.playRoute === 2 ? 2 : 3,
   };
   await db.run(
-    `INSERT INTO sessions (id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector, client_name, event_date)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO sessions (id, name, duration_sec, hint_penalty, hint_penalty_sec, status, started_at, pause_started_at, paused_ms, time_adjust_sec, created_at, ended_at, mode, sector, client_name, event_date, play_route)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       session.id,
       session.name,
@@ -246,6 +250,7 @@ export async function createSession(input: {
       session.sector,
       session.clientName,
       session.eventDate,
+      session.playRoute,
     ],
   );
   const teams: Team[] = [];
@@ -518,7 +523,7 @@ export async function grantTime(input: {
 export async function saveSession(session: Session) {
   const db = await sql();
   await db.run(
-    `UPDATE sessions SET name = ?, duration_sec = ?, hint_penalty = ?, hint_penalty_sec = ?, status = ?, started_at = ?, pause_started_at = ?, paused_ms = ?, time_adjust_sec = ?, ended_at = ?, mode = ?, sector = ?, client_name = ?, event_date = ? WHERE id = ?`,
+    `UPDATE sessions SET name = ?, duration_sec = ?, hint_penalty = ?, hint_penalty_sec = ?, status = ?, started_at = ?, pause_started_at = ?, paused_ms = ?, time_adjust_sec = ?, ended_at = ?, mode = ?, sector = ?, client_name = ?, event_date = ?, play_route = ? WHERE id = ?`,
     [
       session.name,
       session.durationSec,
@@ -534,6 +539,7 @@ export async function saveSession(session: Session) {
       session.sector ?? "general",
       session.clientName ?? "",
       session.eventDate ?? "",
+      session.playRoute === 3 ? 3 : 2,
       session.id,
     ],
   );
