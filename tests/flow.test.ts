@@ -266,7 +266,7 @@ test("productie weigert beheer zonder wachtwoord en beperkt pogingen", () => {
   else env.ADMIN_PASSWORD = previousPassword;
 });
 
-test("teamcodes zijn lang en onbekende codes worden afgeremd", () => {
+test("teamcodes zijn lang en onbekende codes worden afgeremd", async () => {
   const code = makeCode();
   assert.equal(code.length, 8);
   assert.match(code, /^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]+$/);
@@ -276,10 +276,10 @@ test("teamcodes zijn lang en onbekende codes worden afgeremd", () => {
   resetPlayGuards();
   env.NODE_ENV = "production";
   delete env.DEMO_TOOLS;
-  assert.equal(guardPlay("DEMO", "read")?.status, 404);
+  assert.equal((await guardPlay("DEMO", "read"))?.status, 404);
   env.DEMO_TOOLS = "true";
   resetPlayGuards();
-  assert.equal(guardPlay("DEMO", "read"), null);
+  assert.equal(await guardPlay("DEMO", "read"), null);
   resetPlayGuards();
   for (let attempt = 0; attempt < 20; attempt += 1) assert.equal(unknownCode().status, 404);
   assert.equal(unknownCode().status, 429);
@@ -495,6 +495,25 @@ test("de demo start als NIS2 op de proloog en de klok wacht", async () => {
   assert.equal(fresh.session.running, false);
   assert.equal(fresh.awareness.prologue.length, 0);
   assert.equal(fresh.session.durationSec, 3600);
+});
+
+test("de testcode schuift een scherm door zonder de puzzel op te lossen", async () => {
+  await load();
+  const opened = await actions.openDemo("m3");
+  assert.equal("code" in opened, true);
+  const before = await snap("DEMO");
+  assert.equal(before.phase, "crisis");
+  const gate = await actions.skipDemo("DEMO");
+  assert.equal("error" in gate, false);
+  const escalated = await snap("DEMO");
+  assert.equal(escalated.awareness.decisions.some((item) => item.id === "escalate" && item.correct), true);
+  assert.equal(escalated.progress.solved, before.progress.solved);
+  const moved = await actions.skipDemo("DEMO");
+  assert.equal("error" in moved, false);
+  const after = await snap("DEMO");
+  assert.equal((await store.getByCode("DEMO"))?.team.story?.scenes.includes("m3"), true);
+  const refused = await actions.skipDemo("NOPE");
+  assert.equal("error" in refused, true);
 });
 
 test("tijd toevoegen geldt per team, eenmaal, en herstart niemand", async () => {

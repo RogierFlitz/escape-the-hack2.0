@@ -140,6 +140,12 @@ export async function listSessions() {
   return rows.map(sessionOf);
 }
 
+export async function sessionIdsForCode(code: string) {
+  const db = await sql();
+  const rows = await db.all<{ session_id: string }>(`SELECT session_id FROM teams WHERE code = ?`, [code]);
+  return rows.map((row) => row.session_id);
+}
+
 export async function listSessionRollup(now = Date.now()): Promise<SessionRollup[]> {
   const db = await sql();
   const rows = await db.all<{

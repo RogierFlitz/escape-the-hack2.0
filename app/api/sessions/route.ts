@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listSessionRollup, listSessions } from "@/lib/db/store";
+import { listSessionRollup, listSessions, sessionIdsForCode } from "@/lib/db/store";
 import { parseMode } from "@/lib/game/awareness";
 import { parseSector } from "@/lib/game/sector";
 import { createSession } from "@/lib/game/actions";
@@ -11,9 +11,13 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const denied = await adminGuard();
   if (denied) return denied;
-  const sessions = await listSessions();
-  const counts = await listSessionRollup();
-  return NextResponse.json({ ok: true, sessions, counts });
+  const [sessions, counts, demoSessionIds] = await Promise.all([listSessions(), listSessionRollup(), sessionIdsForCode("DEMO")]);
+  const demoIds = new Set(demoSessionIds);
+  return NextResponse.json({
+    ok: true,
+    sessions: sessions.map((session) => ({ ...session, test: demoIds.has(session.id) })),
+    counts,
+  });
 }
 
 export async function POST(request: Request) {

@@ -272,6 +272,32 @@ h1, h2, h3, p { margin: 0; }
 .bay { min-height: 72px; }
 .slot { min-width: 72px; min-height: 56px; }
 .rail { display: flex; gap: 8px; min-height: 64px; }
+.demo-walk {
+  position: fixed;
+  z-index: 80;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(8, 14, 24, 0.92);
+  border: 1px solid rgba(126, 231, 255, 0.45);
+}
+.demo-walk span { color: #7ee7ff; font-size: 12px; letter-spacing: 0.08em; }
+.demo-walk button {
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(150, 178, 206, 0.35);
+  background: #132033;
+  color: #e7eef6;
+  cursor: pointer;
+}
+.demo-walk button.on { background: #d0122a; border-color: #d0122a; }
 .note {
   min-height: 24px;
   color: var(--amber);

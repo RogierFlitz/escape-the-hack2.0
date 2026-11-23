@@ -1,5 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
+import { isAdmin } from "./auth";
 
 const WINDOW_MS = 60_000;
 
@@ -31,10 +32,16 @@ function limited(retrySec: number) {
   );
 }
 
-export function guardPlay(code: string, kind: "read" | "write") {
+export async function guardPlay(code: string, kind: "read" | "write") {
   const normalized = code.trim().toUpperCase();
   if (normalized === "DEMO" && process.env.NODE_ENV === "production" && process.env["DEMO_TOOLS"] !== "true") {
-    return NextResponse.json({ ok: false, error: "Code niet herkend." }, { status: 404 });
+    let admin = false;
+    try {
+      admin = await isAdmin();
+    } catch {
+      admin = false;
+    }
+    if (!admin) return NextResponse.json({ ok: false, error: "Code niet herkend." }, { status: 404 });
   }
   const slot = takeSlot(`${kind}:${normalized}`, kind === "write" ? 40 : 90);
   if (!slot.ok) return limited(slot.retrySec);

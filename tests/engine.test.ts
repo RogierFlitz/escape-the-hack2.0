@@ -505,7 +505,8 @@ test("demo is in productie dicht voor spelers", () => {
   assert.equal(demoBlocked(false), true);
   assert.equal(demoBlocked(true), false);
   delete env.DEMO_TOOLS;
-  assert.equal(demoBlocked(true), true);
+  assert.equal(demoBlocked(true), false);
+  assert.equal(demoBlocked(false), true);
   env.NODE_ENV = "development";
   assert.equal(demoBlocked(false), false);
   if (previousNode === undefined) delete env.NODE_ENV;

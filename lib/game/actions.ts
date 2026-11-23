@@ -7,7 +7,7 @@ import { puzzles } from "./content";
 import { grade } from "./grade";
 import { hintText, rescueHint } from "./hints";
 import { DEMO_CODE, demoProgress, type DemoStop } from "./demo";
-import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, recordDecision, recordEval, recordPulse, type PulseWhen } from "./awareness";
+import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, pendingStoryDecision, recordDecision, recordEval, recordPulse, type PulseWhen } from "./awareness";
 import { kadeHit, kadeMiss } from "./guide";
 import { countsOnRoute, routeOf } from "./route";
 import { applyStory, emptyStory, lastTransmission, missionReady, nextBeat } from "./story";
@@ -273,6 +273,7 @@ function advance(team: Team, route: number): { error: string } | { ok: true } {
     if (token && !team.inventory.includes(token)) team.inventory = [...team.inventory, token];
     if (beat.puzzleId === "ch1-bays") team.story = { ...story, social: true };
     if (beat.puzzleId === "ch4-backup") team.story = { ...(team.story ?? story), backup: true };
+    if (route >= 3 && beat.puzzleId === "ch4-backup" && !team.inventory.includes("SEAL")) team.inventory = [...team.inventory, "SEAL"];
     if (allSolved(team.solved, route)) {
       team.status = "completed";
       team.finishedAt = Date.now();
@@ -280,6 +281,45 @@ function advance(team: Team, route: number): { error: string } | { ok: true } {
     return { ok: true };
   }
   return { error: "Er is geen volgend verhaalmoment." };
+}
+
+export async function skipDemo(code: string) {
+  if (code.trim().toUpperCase() !== DEMO_CODE) return { error: "Alleen de testcode kan worden doorgeschoven." as const };
+  return mutate(code, (session, team, now) => {
+    const mode = session.mode ?? "escape";
+    const awareness = team.awareness ?? emptyAwareness();
+    const story = team.story ?? emptyStory();
+    if (includesTraining(mode)) {
+      const gate = pendingStoryDecision(mode, story.scenes, awareness);
+      const choice = gate === "escalate" ? "escalate" : gate === "supplier" ? "inform,restrict,recheck,verify" : "";
+      if (gate && choice) {
+        const graded = gradeDecision(gate, choice);
+        if (graded) {
+          team.awareness = recordDecision(awareness, graded).state;
+          return { team };
+        }
+      }
+    }
+    const route = routeOf(session);
+    const beat = nextBeat(story, team.solved, team.phishReported, route);
+    if (includesTraining(mode) && beat.kind === "puzzle" && beat.puzzleId.startsWith("ch4-") && !awareness.decisions.some((item) => item.id === "priority")) {
+      const graded = gradeDecision("priority", "backup");
+      if (graded) {
+        team.awareness = recordDecision(awareness, graded).state;
+        return { team };
+      }
+    }
+    if (inOffice(team)) {
+      team.breachOffsetSec = elapsedSec(session, now);
+      team.phishReported = true;
+      team.awareness = markPrologue({ awareness, breachOffsetSec: team.breachOffsetSec }, "skip").awareness;
+      if (!story.scenes.includes("incident")) team.story = { ...story, scenes: [...story.scenes, "incident"] };
+      return { team };
+    }
+    const moved = advance(team, route);
+    if ("error" in moved) return moved;
+    return { team };
+  });
 }
 
 export async function ackEvent(code: string, eventId: string) {

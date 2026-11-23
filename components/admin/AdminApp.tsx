@@ -10,6 +10,7 @@ import { SoundDesk } from "./SoundDesk";
 import { AdminResults, PlayerResults } from "../results/ResultsApp";
 import "./gcc.css";
 
+type DeskSession = Session & { test?: boolean };
 type View = "dashboard" | "sessions" | "new" | "live" | "teams" | "test" | "board" | "results" | "settings";
 type Filter = "all" | "draft" | "live" | "paused" | "ended";
 
@@ -177,7 +178,7 @@ export function AdminApp() {
   const [configError, setConfigError] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<DeskSession[]>([]);
   const [counts, setCounts] = useState<SessionRollup[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [board, setBoard] = useState<AdminSnapshot | null>(null);
@@ -453,7 +454,7 @@ export function AdminApp() {
     const needle = query.trim().toLowerCase();
     return `${session.name} ${session.clientName}`.toLowerCase().includes(needle);
   });
-  const currentSessions = sessions.filter((session) => session.status !== "ended" && freshSession(session));
+  const currentSessions = sessions.filter((session) => !session.test && session.status !== "ended" && freshSession(session));
   const featured = currentSessions.find((session) => session.status === "live" || session.status === "paused") ?? currentSessions[0] ?? null;
   const otherCurrent = currentSessions.filter((session) => session.id !== featured?.id);
   const olderLive = sessions.filter((session) => (session.status === "live" || session.status === "paused") && !freshSession(session)).length;
@@ -561,6 +562,12 @@ export function AdminApp() {
                 <button className="gcc-btn primary" type="button" onClick={() => setView("new")}>Nieuwe sessie</button>
               </section>
             )}
+            <section className="gcc-panel">
+              <p className="gcc-kicker">Testen</p>
+              <h2>Elke missie openen</h2>
+              <p className="gcc-note">Opent de testversie in een nieuw tabblad, zonder teamcode. Op dat scherm staat Volgende, zodat je door elke stap kunt klikken. Een echte speelsessie blijft onaangeroerd.</p>
+              <DemoJumps always blank />
+            </section>
             {otherCurrent.length > 0 && (
               <section className="gcc-panel">
                 <h2>Ook vandaag</h2>
@@ -721,9 +728,9 @@ export function AdminApp() {
           <section className="gcc-panel">
             <p className="gcc-kicker">Testcentrum</p>
             <h1>Demo, los van het evenement</h1>
-            <div className="gcc-alert">Dit zet alleen het demoteam met code DEMO terug. Een echte speelsessie en de teams daarvan blijven onaangeroerd. In productie blijft de demo-API dicht, tenzij die apart is aangezet.</div>
+            <div className="gcc-alert">Dit zet alleen het demoteam met code DEMO terug. Een echte speelsessie en de teams daarvan blijven onaangeroerd. Spelers zonder beheer kunnen die code niet gebruiken.</div>
             <PilotList />
-            <DemoJumps always />
+            <DemoJumps always blank />
           </section>
         )}
         {view === "board" && (

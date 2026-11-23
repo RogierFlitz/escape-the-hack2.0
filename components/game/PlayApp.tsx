@@ -6,7 +6,9 @@ import { chapters, puzzleCues } from "@/lib/game/content";
 import { noraBrief } from "@/lib/game/guide";
 import { asSector, sectorLine } from "@/lib/game/sector";
 import { SectorProvider, useSector } from "./SectorSkin";
+import { demoStops, type DemoStop } from "@/lib/game/demo";
 import { countsOnRoute } from "@/lib/game/route";
+import { clearDemoClient } from "../home/DemoJumps";
 import { dossier, emptyStory, failLines, missionTitle, nextBeat, noraNote, speech, winLines } from "@/lib/game/story";
 import { savedOfficePieces } from "./Intranet";
 import type { PlayFile, PlaySnapshot } from "@/lib/types";
@@ -417,10 +419,38 @@ export function PlayApp({ code }: { code: string }) {
     setCineResume(false);
   }
 
+  async function walk() {
+    if (showOrigin) sessionStorage.setItem(`eth-origin-${code}`, "skip");
+    sessionStorage.removeItem(`eth-cine-${code}`);
+    setCine(false);
+    await send("skip", {});
+  }
+
+  async function jump(at: DemoStop) {
+    const response = await fetch("/api/demo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ at }),
+    });
+    if (!response.ok) return;
+    clearDemoClient(code);
+    const preview = at === "resultaten" ? "?voorbeeld=1" : "";
+    window.location.assign(`/play/${code}${preview}`);
+  }
+
   return (
     <SectorProvider sector={snap.session.sector ?? "general"}>
     <main className={`${snap.phase === "office" ? "office-root" : "play-root"}${missionOne ? " m1-shell" : ""}${missionTwo ? " m2-shell" : ""} app-shell`}>
       <Pwa />
+      {code.toUpperCase() === "DEMO" && (
+        <div className="demo-walk">
+          <span>Test</span>
+          {demoStops.map((stop) => (
+            <button key={stop.id} type="button" onClick={() => void jump(stop.id)}>{stop.label}</button>
+          ))}
+          <button type="button" className="on" onClick={() => void walk()}>Volgende</button>
+        </div>
+      )}
       <div className="turn">
         <div>
           <p className="kicker">Tablet</p>

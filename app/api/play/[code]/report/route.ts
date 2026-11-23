@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(_request: Request, context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
-  const limited = guardPlay(code, "read");
+  const limited = await guardPlay(code, "read");
   if (limited) return limited;
   const found = await getByCode(code);
   if (!found) return unknownCode();
