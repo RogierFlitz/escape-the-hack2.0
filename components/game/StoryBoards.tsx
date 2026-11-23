@@ -4,7 +4,7 @@ import { useState } from "react";
 import { backups, sessions, socialPosts } from "@/lib/game/story";
 import type { Token } from "@/lib/types";
 import { SealPuzzle, ShutdownPuzzle } from "./puzzles/late";
-import { Pick } from "./puzzles/ui";
+import { Pick, TaskCue } from "./puzzles/ui";
 
 export function SocialBoard({ busy, onSubmit }: { busy: boolean; onSubmit: (ids: string[]) => void }) {
   const [picked, setPicked] = useState<string[]>([]);
@@ -13,9 +13,10 @@ export function SocialBoard({ busy, onSubmit }: { busy: boolean; onSubmit: (ids:
   }
   return (
     <div className="stack">
+      <TaskCue id="social" />
       <p className="kicker">Missie 1 · Digital Footprint</p>
       <h2>Openbaar archief</h2>
-      <p>KADE verzamelde dit vóór de aanval. Kies vijf berichten. Een vinkje betekent gekozen. Tik nog eens om het weg te halen. {picked.length}/5</p>
+      <p>Een vinkje betekent gekozen. Tik nog eens om het weg te halen. {picked.length}/5</p>
       <div className="feed">
         {socialPosts.map((post) => (
           <Pick key={post.id} many className="post" on={picked.includes(post.id)} onClick={() => toggle(post.id)}>
@@ -35,9 +36,9 @@ export function BackupBoard({ busy, onSubmit }: { busy: boolean; onSubmit: (id: 
   const [picked, setPicked] = useState<string | null>(null);
   return (
     <div className="stack">
+      <TaskCue id="backup" />
       <p className="kicker">Onderzoek · back-ups</p>
       <h2>Welke kopie is nog schoon?</h2>
-      <p>KADE versleutelde wat aan het netwerk hing. Kies de kopie die hij niet kon bereiken.</p>
       {backups.map((item) => (
         <button key={item.id} type="button" className={picked === item.id ? "token on" : "token"} onClick={() => setPicked(item.id)}>
           <strong>{item.title}</strong>

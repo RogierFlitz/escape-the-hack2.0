@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request, context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
-  const limited = guardPlay(code, "write");
+  const limited = await guardPlay(code, "write");
   if (limited) return limited;
   const body = (await request.json().catch(() => null)) as { puzzleId?: string; payload?: unknown } | null;
   if (!body?.puzzleId) return NextResponse.json({ ok: false, error: "Geen opdracht." }, { status: 400 });
@@ -24,5 +24,5 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
       { status: 422 },
     );
   }
-  return NextResponse.json(snapshot);
+  return NextResponse.json({ ...snapshot, kade: result.note ?? null });
 }

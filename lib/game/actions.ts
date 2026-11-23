@@ -1,13 +1,15 @@
 import "server-only";
 import { addCoachNote, addDraftTeam, clearTeamTime, createSession, getByCode, getSession, grantTime, removeReadyTeam, renameTeam, saveSession, saveTeam, setTeamCode, updateSessionDetails } from "../db/store";
 import { allSolved, currentChapterId } from "../scoring";
-import { elapsedSec, inOffice, teamRemainingSec } from "../time";
+import { elapsedSec, inOffice, missionFiveGrant, teamRemainingSec } from "../time";
 import type { Session, Team } from "../types";
 import { puzzles } from "./content";
 import { grade } from "./grade";
 import { hintText, rescueHint } from "./hints";
 import { DEMO_CODE, demoProgress, type DemoStop } from "./demo";
-import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, recordDecision, recordEval, recordPulse, type PulseWhen } from "./awareness";
+import { emptyAwareness, gradeDecision, gradeEval, includesTraining, markPrologue, parseMode, pendingStoryDecision, recordDecision, recordEval, recordPulse, type PulseWhen } from "./awareness";
+import { kadeHit, kadeMiss } from "./guide";
+import { countsOnRoute, routeOf } from "./route";
 import { applyStory, emptyStory, lastTransmission, missionReady, nextBeat } from "./story";
 import { parseSector } from "./sector";
 import type { StoryInput, StoryState } from "./story";
@@ -54,26 +56,29 @@ export async function solve(code: string, puzzleId: string, payload: unknown) {
     const blocked = guard(session, team, now);
     if (blocked) return { error: blocked };
     if (inOffice(team)) return { error: "De aanval is nog niet begonnen." };
-    const chapter = currentChapterId(team.solved);
+    const route = routeOf(session);
+    const chapter = currentChapterId(team.solved, route);
     const puzzle = puzzles.find((item) => item.id === puzzleId);
     if (!puzzle || puzzle.chapterId > chapter) return { error: "Deze laag is nog vergrendeld." };
-    const storyBlock = missionReady(team.story ?? emptyStory(), team.solved, puzzleId);
+    const storyBlock = missionReady(team.story ?? emptyStory(), team.solved, puzzleId, route);
     if (storyBlock) return { error: storyBlock };
     const result = grade(puzzleId, payload);
     if (!result.ok) {
       team.fails += 1;
-      return { team, mismatch: true, note: result.note };
+      const voice = result.reason === "mismatch" ? kadeMiss(puzzleId) : null;
+      return { team, mismatch: true, note: voice ?? result.note };
     }
     team.solved = [...team.solved, puzzleId];
     if (result.token && !team.inventory.includes(result.token)) team.inventory = [...team.inventory, result.token];
     if (puzzleId === "ch1-bays") team.story = { ...(team.story ?? emptyStory()), social: true };
     if (puzzleId === "ch4-backup") team.story = { ...(team.story ?? emptyStory()), backup: true };
+    if (route >= 3 && puzzleId === "ch4-backup" && !team.inventory.includes("SEAL")) team.inventory = [...team.inventory, "SEAL"];
     team.lastProgressAt = now;
-    if (allSolved(team.solved)) {
+    if (allSolved(team.solved, route)) {
       team.status = "completed";
       team.finishedAt = now;
     }
-    return { team };
+    return { team, note: kadeHit(puzzleId) ?? undefined };
   });
 }
 
@@ -96,7 +101,7 @@ export async function takeHint(code: string, puzzleId: string, level?: number) {
     if (blocked) return { error: blocked };
     if (inOffice(team)) return { error: "De aanval is nog niet begonnen." };
     const puzzle = puzzles.find((item) => item.id === puzzleId);
-    if (!puzzle || puzzle.chapterId > currentChapterId(team.solved)) return { error: "Deze laag is nog vergrendeld." };
+    if (!puzzle || puzzle.chapterId > currentChapterId(team.solved, routeOf(session))) return { error: "Deze laag is nog vergrendeld." };
     if (team.solved.includes(puzzleId)) return { error: "Deze opdracht is al hersteld." };
     const shown = Math.max(team.hints[puzzleId] ?? 0, team.instructorHints[puzzleId] ?? 0);
     if (typeof level === "number" && Number.isInteger(level)) {
@@ -169,11 +174,38 @@ export async function saveStory(code: string, input: StoryInput) {
     const blocked = guard(session, team, now);
     if (blocked) return { error: blocked };
     if (inOffice(team)) return { error: "De aanval is nog niet begonnen." };
-    const applied = applyStory(team.story ?? emptyStory(), team.solved, team.phishReported, input);
+    const before = team.story ?? emptyStory();
+    const applied = applyStory(before, team.solved, team.phishReported, input, routeOf(session));
     if ("error" in applied) return applied;
     team.story = applied.story;
+    if (!before.scenes.includes("m5") && applied.story.scenes.includes("m5")) {
+      const grant = missionFiveGrant(teamRemainingSec(session, team, now));
+      if (grant > 0) team.timeAdjustSec = (team.timeAdjustSec ?? 0) + grant;
+    }
     team.lastProgressAt = now;
-    return { team };
+    return { team, note: applied.note };
+  });
+}
+
+export async function saveCase(code: string, id: string, choice: string, opened: boolean) {
+  return mutate(code, (session, team, now) => {
+    const blocked = guard(session, team, now);
+    if (blocked) return { error: blocked };
+    if (inOffice(team)) return { error: "De aanval is nog niet begonnen." };
+    const route = routeOf(session);
+    if (route < 3) return { error: "Deze sessie heeft deze stap niet." };
+    if (opened !== true) return { error: "Open eerst de melding." };
+    const story = team.story ?? emptyStory();
+    const beat = nextBeat(story, team.solved, team.phishReported, route);
+    if (beat.kind !== "case" || beat.id !== id) return { error: "Deze stap is nu niet aan de beurt." };
+    const graded = gradeDecision(id, choice);
+    if (!graded) return { error: "Onbekende keuze." };
+    const next = recordDecision(team.awareness ?? emptyAwareness(), graded);
+    team.awareness = next.state;
+    const scene = `case-${id}`;
+    if (!story.scenes.includes(scene)) team.story = { ...story, scenes: [...story.scenes, scene] };
+    team.lastProgressAt = now;
+    return { team, note: graded.explanation };
   });
 }
 
@@ -199,7 +231,7 @@ export async function guideTeam(sessionId: string, teamId: string, action: "repl
     if (!scene) return { error: "Er is nog geen KADE-scène." };
     next.story = { ...next.story, replay: scene };
   } else {
-    const moved = advance(next);
+    const moved = advance(next, routeOf(found.session));
     if ("error" in moved) return moved;
   }
   next.updatedAt = Date.now();
@@ -209,11 +241,16 @@ export async function guideTeam(sessionId: string, teamId: string, action: "repl
   return { ok: true as const };
 }
 
-function advance(team: Team): { error: string } | { ok: true } {
+function advance(team: Team, route: number): { error: string } | { ok: true } {
   const story: StoryState = team.story ?? emptyStory();
-  const beat = nextBeat(story, team.solved, team.phishReported);
+  const beat = nextBeat(story, team.solved, team.phishReported, route);
+  if (beat.kind === "case") {
+    const scene = `case-${beat.id}`;
+    if (!story.scenes.includes(scene)) team.story = { ...story, scenes: [...story.scenes, scene] };
+    return { ok: true };
+  }
   if (beat.kind === "transmission" || beat.kind === "discovery") {
-    const applied = applyStory(story, team.solved, team.phishReported, { scene: beat.id });
+    const applied = applyStory(story, team.solved, team.phishReported, { scene: beat.id }, route);
     if ("error" in applied) return applied;
     team.story = applied.story;
     return { ok: true };
@@ -236,13 +273,53 @@ function advance(team: Team): { error: string } | { ok: true } {
     if (token && !team.inventory.includes(token)) team.inventory = [...team.inventory, token];
     if (beat.puzzleId === "ch1-bays") team.story = { ...story, social: true };
     if (beat.puzzleId === "ch4-backup") team.story = { ...(team.story ?? story), backup: true };
-    if (allSolved(team.solved)) {
+    if (route >= 3 && beat.puzzleId === "ch4-backup" && !team.inventory.includes("SEAL")) team.inventory = [...team.inventory, "SEAL"];
+    if (allSolved(team.solved, route)) {
       team.status = "completed";
       team.finishedAt = Date.now();
     }
     return { ok: true };
   }
   return { error: "Er is geen volgend verhaalmoment." };
+}
+
+export async function skipDemo(code: string) {
+  if (code.trim().toUpperCase() !== DEMO_CODE) return { error: "Alleen de testcode kan worden doorgeschoven." as const };
+  return mutate(code, (session, team, now) => {
+    const mode = session.mode ?? "escape";
+    const awareness = team.awareness ?? emptyAwareness();
+    const story = team.story ?? emptyStory();
+    if (includesTraining(mode)) {
+      const gate = pendingStoryDecision(mode, story.scenes, awareness);
+      const choice = gate === "escalate" ? "escalate" : gate === "supplier" ? "inform,restrict,recheck,verify" : "";
+      if (gate && choice) {
+        const graded = gradeDecision(gate, choice);
+        if (graded) {
+          team.awareness = recordDecision(awareness, graded).state;
+          return { team };
+        }
+      }
+    }
+    const route = routeOf(session);
+    const beat = nextBeat(story, team.solved, team.phishReported, route);
+    if (includesTraining(mode) && beat.kind === "puzzle" && beat.puzzleId.startsWith("ch4-") && !awareness.decisions.some((item) => item.id === "priority")) {
+      const graded = gradeDecision("priority", "backup");
+      if (graded) {
+        team.awareness = recordDecision(awareness, graded).state;
+        return { team };
+      }
+    }
+    if (inOffice(team)) {
+      team.breachOffsetSec = elapsedSec(session, now);
+      team.phishReported = true;
+      team.awareness = markPrologue({ awareness, breachOffsetSec: team.breachOffsetSec }, "skip").awareness;
+      if (!story.scenes.includes("incident")) team.story = { ...story, scenes: [...story.scenes, "incident"] };
+      return { team };
+    }
+    const moved = advance(team, route);
+    if ("error" in moved) return moved;
+    return { team };
+  });
 }
 
 export async function ackEvent(code: string, eventId: string) {
@@ -260,10 +337,11 @@ export async function instructorHint(sessionId: string, teamId: string, puzzleId
   if (!team) return { error: "Team niet gevonden." };
   if (team.status !== "playing") return { error: "Dit team speelt nu niet." };
   if (inOffice(team)) return { error: "Een extra hint kan zodra de aanval is begonnen." };
-  const chapter = currentChapterId(team.solved);
+  const route = routeOf(found.session);
+  const chapter = currentChapterId(team.solved, route);
   const target = puzzleId
-    ? puzzles.find((item) => item.id === puzzleId)
-    : puzzles.find((item) => item.chapterId <= chapter && !team.solved.includes(item.id));
+    ? puzzles.find((item) => item.id === puzzleId && countsOnRoute(route, item.id))
+    : puzzles.find((item) => countsOnRoute(route, item.id) && item.chapterId <= chapter && !team.solved.includes(item.id));
   if (!target || target.chapterId > chapter || team.solved.includes(target.id)) return { error: "Er is geen open opdracht." };
   const shown = Math.max(team.instructorHints[target.id] ?? 0, team.hints[target.id] ?? 0);
   if (shown >= 3) return { error: "De drie hints zijn al gegeven. Schrijf zelf een extra hint." };
@@ -289,8 +367,9 @@ export async function requestRescue(code: string, puzzleId: string) {
   if (session.status === "paused") return { error: "De missie is gepauzeerd." as const };
   if (session.status === "ended") return { error: "Deze missie is gesloten." as const };
   const puzzle = puzzles.find((item) => item.id === puzzleId);
-  const chapter = currentChapterId(team.solved);
-  if (!puzzle || puzzle.chapterId > chapter || team.solved.includes(puzzle.id)) return { error: "Er is geen open opdracht." as const };
+  const route = routeOf(session);
+  const chapter = currentChapterId(team.solved, route);
+  if (!puzzle || !countsOnRoute(route, puzzle.id) || puzzle.chapterId > chapter || team.solved.includes(puzzle.id)) return { error: "Er is geen open opdracht." as const };
   const shown = Math.max(team.hints[puzzle.id] ?? 0, team.instructorHints[puzzle.id] ?? 0);
   if (shown < 3) return { error: "De extra hint komt pas na de drie gewone hints." as const };
   const line = rescueHint(puzzle.id);
@@ -310,10 +389,11 @@ export async function coachTeam(sessionId: string, teamId: string, puzzleId: str
   if (inOffice(team)) return { error: "Een extra hint kan zodra de aanval is begonnen." };
   const line = clip(text, 180);
   if (line.length < 3) return { error: "Schrijf een korte extra hint." };
-  const chapter = currentChapterId(team.solved);
+  const route = routeOf(found.session);
+  const chapter = currentChapterId(team.solved, route);
   const target = puzzleId
-    ? puzzles.find((item) => item.id === puzzleId)
-    : puzzles.find((item) => item.chapterId <= chapter && !team.solved.includes(item.id));
+    ? puzzles.find((item) => item.id === puzzleId && countsOnRoute(route, item.id))
+    : puzzles.find((item) => countsOnRoute(route, item.id) && item.chapterId <= chapter && !team.solved.includes(item.id));
   if (!target || target.chapterId > chapter || team.solved.includes(target.id)) return { error: "Er is geen open opdracht." };
   const saved = await addCoachNote(team.id, target.id, line);
   if ("error" in saved) return saved;
@@ -488,6 +568,7 @@ export async function openDemo(stop: DemoStop) {
   const startedAt = preview ? now - 42 * 60 * 1000 : now;
   await saveSession({
     ...found.session,
+    playRoute: 3,
     name: "Demo",
     status: "live",
     startedAt,

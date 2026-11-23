@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request, context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
-  const limited = guardPlay(code, "write");
+  const limited = await guardPlay(code, "write");
   if (limited) return limited;
   const body = (await request.json().catch(() => null)) as StoryInput | null;
   if (!body) return NextResponse.json({ ok: false, error: "Geen verhaalactie." }, { status: 400 });
@@ -19,5 +19,5 @@ export async function POST(request: Request, context: { params: Promise<{ code: 
     if (result.error === "Code niet herkend.") return unknownCode();
     return NextResponse.json({ ok: false, error: result.error, snapshot }, { status: 400 });
   }
-  return NextResponse.json(snapshot);
+  return NextResponse.json({ ...snapshot, kade: result.note ?? null });
 }

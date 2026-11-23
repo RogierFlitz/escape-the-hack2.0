@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { emptyAwareness, gradeDecision, includesTraining, pendingStoryDecision, prologueComplete, pulseComplete, trainingReport } from "@/lib/game/awareness";
 import { chapters, puzzleCues } from "@/lib/game/content";
+import { noraBrief } from "@/lib/game/guide";
 import { asSector, sectorLine } from "@/lib/game/sector";
 import { SectorProvider, useSector } from "./SectorSkin";
+import { demoStops, type DemoStop } from "@/lib/game/demo";
+import { countsOnRoute } from "@/lib/game/route";
+import { clearDemoClient } from "../home/DemoJumps";
 import { dossier, emptyStory, failLines, missionTitle, nextBeat, noraNote, speech, winLines } from "@/lib/game/story";
 import { savedOfficePieces } from "./Intranet";
 import type { PlayFile, PlaySnapshot } from "@/lib/types";
@@ -19,6 +23,7 @@ import { KadeTransmission, NoraStrip } from "./Kade";
 import { OfficeDesk } from "./OfficeDesk";
 import { OriginPrologue } from "./Origin";
 import { AttackCine } from "./AttackCine";
+import { IncidentCase } from "./IncidentCase";
 import { PuzzleStage } from "./puzzles";
 import { BackupBoard, SocialBoard } from "./StoryBoards";
 import { FinaleAlerts, RestoreCine, ShutdownDesk } from "./Shutdown";
@@ -200,7 +205,7 @@ export function PlayApp({ code }: { code: string }) {
     if (!snap || snap.phase !== "crisis" || snap.finished) return;
     const currentStory = snap.story ?? emptyStory();
     const solved = snap.puzzles.filter((item) => item.solved).map((item) => item.id);
-    const currentBeat = nextBeat(currentStory, solved, snap.team.phishReported);
+    const currentBeat = nextBeat(currentStory, solved, snap.team.phishReported, snap.session.playRoute);
     if (currentBeat.kind === "transmission" || currentBeat.kind === "discovery") return;
     const id = currentBeat.kind === "social" ? 1 : currentBeat.kind === "backup" ? 4 : currentBeat.kind === "finale" ? 6 : currentBeat.kind === "puzzle" ? (snap.puzzles.find((item) => item.id === currentBeat.puzzleId)?.chapterId ?? snap.chapter.id) : snap.chapter.id;
     const key = `eth-sting-${code}`;
@@ -253,7 +258,8 @@ export function PlayApp({ code }: { code: string }) {
       const solvedNow = (data.progress?.solved ?? data.snapshot?.progress?.solved ?? before) > before;
       const puzzleId = body && typeof body === "object" && "puzzleId" in body ? String((body as { puzzleId: unknown }).puzzleId) : "";
       const early = puzzleId.startsWith("ch1-") || puzzleId.startsWith("ch2-") || puzzleId.startsWith("ch3-") || puzzleId.startsWith("ch4-") || puzzleId.startsWith("ch5-") || puzzleId.startsWith("ch6-");
-      setNote(solvedNow ? (early ? "Vastgelegd." : "Laag hersteld.") : null);
+      const kade = typeof data.kade === "string" ? data.kade : "";
+      setNote(kade || (solvedNow ? (early ? "Vastgelegd." : "Laag hersteld.") : null));
       if (solvedNow) playOk();
       return true;
     } catch {
@@ -369,10 +375,11 @@ export function PlayApp({ code }: { code: string }) {
   const priority = awareness.decisions.find((item) => item.id === "priority");
   const priorityText = priority ? gradeDecision("priority", priority.choice)?.explanation ?? "" : "";
   const solvedIds = snap.puzzles.filter((item) => item.solved).map((item) => item.id);
-  const beat = nextBeat(story, solvedIds, snap.team.phishReported);
+  const route = snap.session.playRoute === 3 ? 3 : 2;
+  const beat = nextBeat(story, solvedIds, snap.team.phishReported, route);
   const spoken = beat.kind === "transmission" || beat.kind === "discovery" ? speech(beat.id, reported) : null;
-  const missionId = beat.kind === "social" ? 1 : beat.kind === "backup" ? 4 : beat.kind === "finale" ? 6 : beat.kind === "puzzle" ? (snap.puzzles.find((item) => item.id === beat.puzzleId)?.chapterId ?? snap.chapter.id) : beat.kind === "transmission" || beat.kind === "discovery" ? Number(beat.id.replace(/\D/g, "")) || 1 : snap.chapter.id;
-  const missionSteps = snap.puzzles.filter((item) => item.chapterId === missionId);
+  const missionId = beat.kind === "social" ? 1 : beat.kind === "backup" ? 4 : beat.kind === "finale" ? 6 : beat.kind === "case" ? (beat.id === "mfa" ? 3 : 4) : beat.kind === "puzzle" ? (snap.puzzles.find((item) => item.id === beat.puzzleId)?.chapterId ?? snap.chapter.id) : beat.kind === "transmission" || beat.kind === "discovery" ? Number(beat.id.replace(/\D/g, "")) || 1 : snap.chapter.id;
+  const missionSteps = snap.puzzles.filter((item) => item.chapterId === missionId && countsOnRoute(route, item.id));
   const lessons = dossier(story);
   const finaleStep = beat.kind === "finale" ? beat.step : beat.kind === "puzzle" && beat.puzzleId === "ch6-seals" ? "seals" as const : beat.kind === "puzzle" && beat.puzzleId === "ch6-shutdown" ? "shutdown" as const : null;
   const stagePuzzle = beat.kind === "puzzle" ? snap.puzzles.find((item) => item.id === beat.puzzleId) ?? null : null;
@@ -412,10 +419,38 @@ export function PlayApp({ code }: { code: string }) {
     setCineResume(false);
   }
 
+  async function walk() {
+    if (showOrigin) sessionStorage.setItem(`eth-origin-${code}`, "skip");
+    sessionStorage.removeItem(`eth-cine-${code}`);
+    setCine(false);
+    await send("skip", {});
+  }
+
+  async function jump(at: DemoStop) {
+    const response = await fetch("/api/demo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ at }),
+    });
+    if (!response.ok) return;
+    clearDemoClient(code);
+    const preview = at === "resultaten" ? "?voorbeeld=1" : "";
+    window.location.assign(`/play/${code}${preview}`);
+  }
+
   return (
     <SectorProvider sector={snap.session.sector ?? "general"}>
     <main className={`${snap.phase === "office" ? "office-root" : "play-root"}${missionOne ? " m1-shell" : ""}${missionTwo ? " m2-shell" : ""} app-shell`}>
       <Pwa />
+      {code.toUpperCase() === "DEMO" && (
+        <div className="demo-walk">
+          <span>Test</span>
+          {demoStops.map((stop) => (
+            <button key={stop.id} type="button" onClick={() => void jump(stop.id)}>{stop.label}</button>
+          ))}
+          <button type="button" className="on" onClick={() => void walk()}>Volgende</button>
+        </div>
+      )}
       <div className="turn">
         <div>
           <p className="kicker">Tablet</p>
@@ -541,7 +576,7 @@ export function PlayApp({ code }: { code: string }) {
             <aside className={`panel col rail-left${rail === "mission" ? " open" : ""}`}>
               <p className="kicker">{missionTitle(missionId)}</p>
               {snap.session.sector && snap.session.sector !== "general" && <p className="muted">{sectorLine(snap.session.sector)}</p>}
-              <p className="muted">Nu: {stagePuzzle ? puzzleCues[stagePuzzle.id]?.text : beat.kind === "finale" ? puzzleCues[beat.step]?.text : beat.kind === "social" ? "Kies vijf openbare sporen. Druk daarna op Dit zijn de vijf sporen." : beat.kind === "backup" ? "Vergelijk de kopieën en kies er één. Druk daarna op Deze back-up terugzetten." : spoken?.title ?? "Volg de opdracht op dit scherm."}</p>
+              <p className="muted">Nu: {stagePuzzle ? (noraBrief(stagePuzzle.id)?.doel ?? puzzleCues[stagePuzzle.id]?.text) : beat.kind === "case" ? (noraBrief(beat.id)?.doel ?? "Onderzoek het bewijs en kies.") : beat.kind === "finale" ? (noraBrief(beat.step)?.doel ?? puzzleCues[beat.step]?.text) : beat.kind === "social" ? (noraBrief("social")?.doel ?? "Kies vijf openbare sporen.") : beat.kind === "backup" ? (noraBrief("backup")?.doel ?? "Vergelijk de kopieën en kies er één.") : spoken?.title ?? "Volg de opdracht op dit scherm."}</p>
               <div className="list" style={{ marginTop: 10 }}>
                 {missionSteps.map((item) => (
                   <div key={item.id} className={`task${item.id === stagePuzzle?.id ? " on" : ""}${item.solved ? " done" : ""}`}>
@@ -594,6 +629,8 @@ export function PlayApp({ code }: { code: string }) {
                     void send("story", { scene: spoken.id });
                   }}
                 />
+              ) : beat.kind === "case" ? (
+                <IncidentCase id={beat.id} busy={busy} onSubmit={(choice, opened) => void send("case", { id: beat.id, choice, opened })} />
               ) : beat.kind === "social" ? (
                 <SocialBoard busy={busy} onSubmit={(ids) => void send("story", { social: ids })} />
               ) : beat.kind === "backup" ? (
@@ -672,7 +709,7 @@ export function PlayApp({ code }: { code: string }) {
             </aside>
           </section>
           <footer className="foot">
-            <div className={`note${note === "Laag hersteld." || note === "Vastgelegd." ? " good" : ""}`}>{spoken ? "" : note ? asSector(snap.session.sector, note) : ""}</div>
+            <div className={`note${note === "Laag hersteld." || note === "Vastgelegd." ? " good" : ""}${note?.startsWith("KADE:") || note?.startsWith("Aanvaller:") ? " voice" : ""}`}>{spoken ? "" : note ? asSector(snap.session.sector, note) : ""}</div>
             <div className="grow" />
             {stagePuzzle && !stagePuzzle.solved && (
               <>

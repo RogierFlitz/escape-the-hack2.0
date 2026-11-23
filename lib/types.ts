@@ -21,6 +21,8 @@ export type Session = {
   timeAdjustSec: number;
   createdAt: number;
   endedAt: number | null;
+  /** 2 houdt de oude keten. 3 is de route voor nieuwe sessies. */
+  playRoute: 2 | 3;
 };
 
 export type Team = {
@@ -99,6 +101,7 @@ export type PlaySnapshot = {
     mode: GameMode;
     sector: Sector;
     clientName: string;
+    playRoute: 2 | 3;
   };
   awareness: AwarenessState;
   chapter: { id: number; title: string; subtitle: string; index: number; total: number };

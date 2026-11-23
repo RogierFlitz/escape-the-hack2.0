@@ -119,6 +119,34 @@ export function stopSceneVoice() {
   duckMusic(false);
 }
 
+export function playRoleVoice(path: string, onDone: () => void, onFail: () => void) {
+  if (typeof window === "undefined") return false;
+  stopSceneVoice();
+  duckMusic(true);
+  const next = new Audio(path);
+  clip = next;
+  next.volume = readVoiceVolume() / 100;
+  let settled = false;
+  const fail = () => {
+    if (settled) return;
+    settled = true;
+    if (clip === next) clip = null;
+    duckMusic(false);
+    onFail();
+  };
+  const done = () => {
+    if (settled) return;
+    settled = true;
+    if (clip === next) clip = null;
+    duckMusic(false);
+    onDone();
+  };
+  next.addEventListener("error", fail, { once: true });
+  next.addEventListener("ended", done, { once: true });
+  void next.play().catch(fail);
+  return true;
+}
+
 export function playSceneVoice(sceneId: string, index: number, onDone: () => void) {
   const path = sceneVoice(`${sceneId}:${index}`);
   if (!path || typeof window === "undefined") return false;

@@ -33,7 +33,7 @@ export function demoToolsEnabled() {
 
 export function demoBlocked(admin: boolean) {
   if (process.env.NODE_ENV !== "production") return false;
-  return !(demoToolsEnabled() && admin);
+  return !admin;
 }
 
 export function isDemoStop(value: unknown): value is DemoStop {

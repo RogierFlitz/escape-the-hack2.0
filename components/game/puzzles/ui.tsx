@@ -2,6 +2,7 @@
 
 import { useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { puzzleCues } from "@/lib/game/content";
+import { noraBrief } from "@/lib/game/guide";
 
 export function Pick({
   many = false,
@@ -26,12 +27,22 @@ export function Seal() {
   return <div className="seal mono">LAAG HERSTELD</div>;
 }
 
-export function TaskCue({ id, nora }: { id: string; nora?: string }) {
+export function TaskCue({ id }: { id: string }) {
+  const brief = noraBrief(id);
   const cue = puzzleCues[id];
+  if (brief) {
+    return (
+      <div className="fp-cue" data-cue={id}>
+        <p className="fp-act">NORA</p>
+        <p><b>Situatie. </b>{brief.situatie}</p>
+        <p><b>Doel. </b>{brief.doel}</p>
+        <p><b>Actie. </b>{brief.actie}</p>
+      </div>
+    );
+  }
   if (!cue) return null;
   return (
     <div className="fp-cue" data-cue={id}>
-      {nora ? <p className="fp-nora">{nora}</p> : null}
       <p className="fp-act">Nu doen</p>
       <p>{cue.text}</p>
     </div>

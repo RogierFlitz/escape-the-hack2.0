@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { asSector } from "@/lib/game/sector";
 import { useSector } from "./SectorSkin";
-import { cipherText, puzzleCues, symbolPalette, symbolRows } from "@/lib/game/content";
+import { cipherText, symbolPalette, symbolRows } from "@/lib/game/content";
 import {
   backupReports,
   noraRecovery,
@@ -17,7 +17,7 @@ import {
 } from "@/lib/game/recovery";
 import type { Token } from "@/lib/types";
 import { RecoveryAwareness } from "./AwarenessBeats";
-import { Shape } from "./puzzles/ui";
+import { Shape, TaskCue } from "./puzzles/ui";
 import "./recovery/desk.css";
 
 function useDraft<T>(id: string, initial: T) {
@@ -96,7 +96,6 @@ export function RecoveryDesk({
   const [pass, setPass] = useDraft("ch4-decode-pass", "");
   const [local, setLocal] = useState("");
   const [reading, setReading] = useState<string | null>(null);
-  const cue = puzzleCues[puzzleId];
 
   useEffect(() => {
     setSection(preferred);
@@ -155,17 +154,17 @@ export function RecoveryDesk({
           <span className="warn">EDGE beperkt</span>
           <span className="up">LOG online</span>
         </div>
-        {cue && <p className="m4-cue"><b>Nu doen. </b>{cue.text}</p>}
-        <details className="m4-nora" open>
+        <TaskCue id={puzzleId} />
+        <details className="m4-nora">
           <summary>Uitleg</summary>
-          <p>{noraRecovery} {cue?.text}</p>
+          <p>{noraRecovery}</p>
         </details>
       </div>
       {training && onPriority && (
         <RecoveryAwareness priorityDone={priorityDone} priorityText={priorityText} busy={busy} onPriority={onPriority} />
       )}
       <nav className="m4-tabs" aria-label="Herstelconsole">
-        {sections.map((item) => (
+        {sections.filter((item) => item.id !== "protocol" || puzzleId === "ch4-sequence" || puzzleId === "ch4-rotor").map((item) => (
           <button key={item.id} className={section === item.id ? "on" : ""} type="button" aria-pressed={section === item.id} onClick={() => setSection(item.id)}>
             <TabIcon id={item.id} />
             <span>{item.label}</span>
@@ -350,7 +349,10 @@ function Files({
               </article>
             );
           })}
-          <button className="m4-go" type="button" disabled={busy || solved || damaged.length === 0} onClick={onSolve}>Schade vastleggen</button>
+          <button className="m4-go" type="button" disabled={busy || solved || damaged.length === 0} onClick={onSolve}>
+            {damaged.length > 0 || solved ? "Schade vastleggen" : "Markeer eerst een bestand dat niet leesbaar is."}
+          </button>
+          {damaged.length === 0 && !solved && <p className="m4-empty">Markeer eerst een bestand dat niet leesbaar is.</p>}
         </aside>
       )}
     </div>
@@ -630,7 +632,8 @@ function Copies({
               )}
             </article>
           ))}
-          {choosing && <button className="m4-go" type="button" disabled={busy || solved || !copy} onClick={onSolve}>Deze kopie gebruiken</button>}
+          {choosing && <button className="m4-go" type="button" disabled={busy || solved || !copy} onClick={onSolve}>{copy || solved ? "Deze kopie gebruiken" : "Open eerst een kopie en kies die."}</button>}
+          {choosing && !copy && !solved && <p className="m4-empty">Open eerst een kopie en kies die.</p>}
         </div>
       </section>
     </div>

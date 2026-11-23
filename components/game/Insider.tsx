@@ -7,7 +7,6 @@ import {
   chatLines,
   documents,
   intents,
-  noraInsider,
   people,
   placeChoices,
   proof,
@@ -109,7 +108,7 @@ export function InsiderDesk({
 
   return (
     <div className="rv in">
-      <TaskCue id={puzzleId} nora={puzzleId === "ch5-camera" ? noraInsider : undefined} />
+      <TaskCue id={puzzleId} />
       <div className="rv-main">
         <div className="in-tabs" role="tablist" aria-label="Bewijs van missie 5">
           {sections.map((item) => (
@@ -196,7 +195,10 @@ export function InsiderDesk({
           <p className="kicker">Momentopnames</p>
           <p>Bewaar het beeld waarop een persoon óf een pas een plek bewijst. Een pasregistratie noemt een naam. Een camera laat een plek zien. Dat hoeft niet dezelfde persoon te zijn. Meerdere beelden mogen. Tik nog eens om een bewaard beeld weg te halen.</p>
           <p>{frames.length} bewaard</p>
-          <button className="btn btn-mint" type="button" disabled={busy || solved || frames.length === 0} onClick={() => onSolve({ frames })}>Beelden vastleggen</button>
+          <button className="btn btn-mint" type="button" disabled={busy || solved || frames.length === 0} onClick={() => onSolve({ frames })}>
+            {frames.length > 0 || solved ? "Beelden vastleggen" : "Bewaar eerst minstens één beeld."}
+          </button>
+          {frames.length === 0 && !solved && <p>Bewaar eerst minstens één beeld.</p>}
         </aside>
       )}
       {puzzleId === "ch5-places" && (

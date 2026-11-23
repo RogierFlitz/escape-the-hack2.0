@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { files, network, puzzleCues } from "@/lib/game/content";
+import { files, network } from "@/lib/game/content";
 import { flows, nodeInfo } from "@/lib/game/network";
 import {
   alertLines,
@@ -16,6 +16,7 @@ import {
 } from "@/lib/game/shutdown";
 import type { Token } from "@/lib/types";
 import { playGlitch, playLock, playOk } from "./audio";
+import { TaskCue } from "./puzzles/ui";
 import "./shutdown/desk.css";
 
 function useDraft<T>(id: string, initial: T) {
@@ -139,7 +140,6 @@ export function ShutdownDesk({
   const [kade, setKade] = useState(false);
   const previous = useRef(step);
   const revoked = step !== "access" && step !== "revoke";
-  const cue = puzzleCues[step];
 
   useEffect(() => {
     setSection(preferred);
@@ -173,7 +173,7 @@ export function ShutdownDesk({
           <span className="up">LOG online</span>
           <span className={step === "shutdown" ? "up" : "warn"}>{step === "shutdown" ? "Herstel gecontroleerd" : "Herstel open"}</span>
         </div>
-        {cue && <p className="m6-cue"><b>Nu doen. </b>{cue.text}</p>}
+        <TaskCue id={step} />
         {step === "access" && (
           <details className="m6-kade">
             <summary>NORA</summary>

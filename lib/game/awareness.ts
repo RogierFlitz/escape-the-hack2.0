@@ -1,3 +1,5 @@
+import { kadeHit, kadeMiss } from "./guide";
+
 export type GameMode = "escape" | "awareness" | "nis2" | "eenvoudig";
 
 export const GAME_MODES: GameMode[] = ["escape", "awareness", "nis2", "eenvoudig"];
@@ -286,6 +288,14 @@ export function gradeDecision(id: string, raw: string): Grade | null {
       explanation: PRIORITY_NOTES[choice],
     };
   }
+  if (id === "mfa" || id === "share" || id === "tool") {
+    const choice = raw.trim();
+    const allowed = id === "mfa" ? ["approve", "report", "ignore"] : id === "share" ? ["send", "verify", "ignore"] : ["run", "hold"];
+    if (!allowed.includes(choice)) return null;
+    const correct = (id === "mfa" && choice === "report") || (id === "share" && choice === "verify") || (id === "tool" && choice === "hold");
+    const voice = (correct ? kadeHit(id) : kadeMiss(id)) ?? "De keuze is vastgelegd.";
+    return { id, choice, correct, accepted: true, explanation: voice };
+  }
   if (id === "supplier") {
     const selected = parts(raw);
     if (selected.length === 0) return null;
@@ -345,7 +355,7 @@ export function gradeEval(id: string, raw: string): Grade | null {
 }
 
 function locked(id: string, record: DecisionRecord, kind: "decision" | "eval") {
-  if (kind === "decision" && id === "priority") return true;
+  if (kind === "decision" && (id === "priority" || id === "mfa" || id === "share" || id === "tool")) return true;
   return record.correct;
 }
 

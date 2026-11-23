@@ -16,7 +16,7 @@ export function clearDemoClient(code: string) {
   sessionStorage.removeItem(`eth-origin-${code}`);
 }
 
-export function DemoJumps({ always = false }: { always?: boolean }) {
+export function DemoJumps({ always = false, blank = false }: { always?: boolean; blank?: boolean }) {
   const [busy, setBusy] = useState<DemoStop | null>(null);
   const [error, setError] = useState("");
   if (!always && !demoToolsOn()) return null;
@@ -38,7 +38,9 @@ export function DemoJumps({ always = false }: { always?: boolean }) {
       }
       clearDemoClient(data.code ?? DEMO_CODE);
       const preview = at === "resultaten" ? "?voorbeeld=1" : "";
-      window.location.assign(`/play/${data.code ?? DEMO_CODE}${preview}`);
+      const href = `/play/${data.code ?? DEMO_CODE}${preview}`;
+      const opened = blank ? window.open(href, "_blank", "noopener") : null;
+      if (!opened) window.location.assign(href);
     } catch {
       setError("Demo lukte niet.");
       setBusy(null);

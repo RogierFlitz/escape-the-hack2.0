@@ -187,6 +187,8 @@ export function Briefing({
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [videoMissing, setVideoMissing] = useState(false);
+  const [check, setCheck] = useState<"closed" | "open" | "done">("closed");
+  const [spotted, setSpotted] = useState("");
   const current = CHAPTERS.find((item) => item.id === chapter) ?? CHAPTERS[0];
   const lead = 1.7;
   const caption = [...cues].reverse().find((cue) => time + lead >= cue.t)?.text ?? "";
@@ -428,7 +430,7 @@ export function Briefing({
           ))}
         </div>
         <div className="cb-actions">
-          <button className="cb-go" type="button" onClick={onStart}>
+          <button className="cb-go" type="button" disabled={check !== "closed"} onClick={() => setCheck("open")}>
             Naar het onderzoek
             <span aria-hidden="true">→</span>
           </button>
@@ -439,6 +441,69 @@ export function Briefing({
           </div>
         </div>
       </footer>
+      {check !== "closed" && (
+        <BriefCheck
+          open={check === "done" || spotted !== ""}
+          choice={spotted}
+          onOpen={() => setCheck("done")}
+          onChoose={setSpotted}
+          onGo={onStart}
+        />
+      )}
     </section>
+  );
+}
+
+function BriefCheck({
+  open,
+  choice,
+  onOpen,
+  onChoose,
+  onGo,
+}: {
+  open: boolean;
+  choice: string;
+  onOpen: () => void;
+  onChoose: (id: string) => void;
+  onGo: () => void;
+}) {
+  const note = !open
+    ? "Open eerst het bericht."
+    : !choice
+      ? "Kies eerst wat jullie opvalt."
+      : choice === "check"
+        ? "NORA: Haast en een adres dat jullie nog niet gebruikten, zijn het signaal. In het onderzoek kijken jullie dat na."
+        : "NORA: Haast en een nieuw adres vragen om een check. Jullie gaan toch door.";
+  return (
+    <>
+    <div className="cb-check-back" />
+    <div className="cb-check" role="dialog" aria-modal="true" aria-label="Eerste bericht">
+      <p className="cb-sit">NORA</p>
+      <h2>Wat valt op aan dit bericht?</h2>
+      <p>Eén bericht, daarna het onderzoek. Een keuze houdt jullie niet tegen.</p>
+      {!open ? (
+        <button className="cb-go" type="button" onClick={onOpen}>Open het bericht</button>
+      ) : (
+        <article>
+          <p>Van: Planning &lt;planning@nexora-dag.nl&gt;</p>
+          <p>Onderwerp: de plattegrond, nog voor de lunch</p>
+          <p>Dit adres gebruikten jullie nog niet. Het verzoek heeft haast.</p>
+        </article>
+      )}
+      {open && (
+        <div className="cb-check-picks">
+          {[
+            ["check", "Eerst controleren via een kanaal dat we al kennen"],
+            ["send", "Meteen de plattegrond sturen"],
+            ["close", "Het bericht wegklikken"],
+          ].map(([id, label]) => (
+            <button key={id} type="button" className={choice === id ? "on" : ""} onClick={() => onChoose(id)}>{label}</button>
+          ))}
+        </div>
+      )}
+      <button className="cb-go" type="button" disabled={!open || !choice} onClick={onGo}>{open && choice ? "Naar het onderzoek" : note}</button>
+      <p>{note}</p>
+    </div>
+    </>
   );
 }

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request, context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
-  const limited = guardPlay(code, "write");
+  const limited = await guardPlay(code, "write");
   if (limited) return limited;
   const body = (await request.json().catch(() => null)) as { id?: string; choice?: string } | null;
   if (!body?.id || typeof body.choice !== "string") {

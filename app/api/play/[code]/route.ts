@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
-  const limited = guardPlay(code, "read");
+  const limited = await guardPlay(code, "read");
   if (limited) return limited;
   let snapshot = await playSnapshot(code);
   const demo = code.trim().toUpperCase() === DEMO_CODE;
