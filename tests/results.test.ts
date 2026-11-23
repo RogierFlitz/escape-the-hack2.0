@@ -69,6 +69,11 @@ test("geslaagd volgt de status, niet een scoregrens", () => {
   assert.equal(report.teams.find((item) => item.name === "Hoog")?.outcome, "bezig");
   assert.equal(report.teams.find((item) => item.name === "Laag")?.outcome, "geslaagd");
   assert.equal(report.teams.find((item) => item.name === "Laag")?.score, scoreBreakdown(session, done, now).total);
+  const line = report.teams.find((item) => item.name === "Laag")?.debrief;
+  assert.match(line?.points ?? "", /punten/);
+  assert.match(line?.knowledge ?? "", /Geen vastgelegde kennisvraag/);
+  assert.match(line?.behavior ?? "", /valse mail is gemeld/);
+  assert.match(line?.teamwork ?? "", /Samenwerking meet het spel niet/);
 });
 
 test("gelijke scores volgen de teamnaam en blijven in deze sessie", () => {

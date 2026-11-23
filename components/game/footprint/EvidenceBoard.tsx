@@ -35,7 +35,9 @@ export function Mission1EvidenceBoard({
           <span>Een lijn is een koppeling, nog geen oordeel.</span>
         </div>
         <strong>{filled}/{claims.length} verbanden</strong>
-        <button className="m1-submit" type="button" disabled={busy || solved} onClick={onSubmit}>Verbanden indienen</button>
+        <button className="m1-submit" type="button" disabled={busy || solved || filled < claims.length} onClick={onSubmit}>
+          {filled >= claims.length || solved ? "Verbanden indienen" : "Koppel eerst elke regel aan een bron."}
+        </button>
       </header>
       <div className="m1-map">
         {claims.map((claim, index) => {

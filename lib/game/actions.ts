@@ -1,7 +1,7 @@
 import "server-only";
 import { addCoachNote, addDraftTeam, clearTeamTime, createSession, getByCode, getSession, grantTime, removeReadyTeam, renameTeam, saveSession, saveTeam, setTeamCode, updateSessionDetails } from "../db/store";
 import { allSolved, currentChapterId } from "../scoring";
-import { elapsedSec, inOffice, teamRemainingSec } from "../time";
+import { elapsedSec, inOffice, missionFiveGrant, teamRemainingSec } from "../time";
 import type { Session, Team } from "../types";
 import { puzzles } from "./content";
 import { grade } from "./grade";
@@ -174,9 +174,14 @@ export async function saveStory(code: string, input: StoryInput) {
     const blocked = guard(session, team, now);
     if (blocked) return { error: blocked };
     if (inOffice(team)) return { error: "De aanval is nog niet begonnen." };
-    const applied = applyStory(team.story ?? emptyStory(), team.solved, team.phishReported, input, routeOf(session));
+    const before = team.story ?? emptyStory();
+    const applied = applyStory(before, team.solved, team.phishReported, input, routeOf(session));
     if ("error" in applied) return applied;
     team.story = applied.story;
+    if (!before.scenes.includes("m5") && applied.story.scenes.includes("m5")) {
+      const grant = missionFiveGrant(teamRemainingSec(session, team, now));
+      if (grant > 0) team.timeAdjustSec = (team.timeAdjustSec ?? 0) + grant;
+    }
     team.lastProgressAt = now;
     return { team, note: applied.note };
   });

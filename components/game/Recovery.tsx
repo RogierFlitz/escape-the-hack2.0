@@ -164,7 +164,7 @@ export function RecoveryDesk({
         <RecoveryAwareness priorityDone={priorityDone} priorityText={priorityText} busy={busy} onPriority={onPriority} />
       )}
       <nav className="m4-tabs" aria-label="Herstelconsole">
-        {sections.map((item) => (
+        {sections.filter((item) => item.id !== "protocol" || puzzleId === "ch4-sequence" || puzzleId === "ch4-rotor").map((item) => (
           <button key={item.id} className={section === item.id ? "on" : ""} type="button" aria-pressed={section === item.id} onClick={() => setSection(item.id)}>
             <TabIcon id={item.id} />
             <span>{item.label}</span>
@@ -349,7 +349,10 @@ function Files({
               </article>
             );
           })}
-          <button className="m4-go" type="button" disabled={busy || solved || damaged.length === 0} onClick={onSolve}>Schade vastleggen</button>
+          <button className="m4-go" type="button" disabled={busy || solved || damaged.length === 0} onClick={onSolve}>
+            {damaged.length > 0 || solved ? "Schade vastleggen" : "Markeer eerst een bestand dat niet leesbaar is."}
+          </button>
+          {damaged.length === 0 && !solved && <p className="m4-empty">Markeer eerst een bestand dat niet leesbaar is.</p>}
         </aside>
       )}
     </div>
@@ -629,7 +632,8 @@ function Copies({
               )}
             </article>
           ))}
-          {choosing && <button className="m4-go" type="button" disabled={busy || solved || !copy} onClick={onSolve}>Deze kopie gebruiken</button>}
+          {choosing && <button className="m4-go" type="button" disabled={busy || solved || !copy} onClick={onSolve}>{copy || solved ? "Deze kopie gebruiken" : "Open eerst een kopie en kies die."}</button>}
+          {choosing && !copy && !solved && <p className="m4-empty">Open eerst een kopie en kies die.</p>}
         </div>
       </section>
     </div>

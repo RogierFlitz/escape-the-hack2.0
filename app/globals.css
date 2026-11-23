@@ -3053,6 +3053,26 @@ body.cine-fail .brief-app { animation: cine-jitter 0.45s steps(2, end) infinite;
   background: #0c1420;
   border: 1px solid rgba(150, 178, 206, 0.16);
 }
+.cb-check-back { position: fixed; inset: 0; z-index: 29; background: rgba(4, 8, 14, 0.55); }
+.cb-check {
+  position: fixed;
+  z-index: 30;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 16px;
+  background: #0c1420;
+  border: 1px solid rgba(150, 178, 206, 0.28);
+  color: #e7eef6;
+}
+.cb-check article, .cb-check-picks { display: grid; gap: 6px; }
+.cb-check-picks button, .cb-check .cb-go { text-align: left; }
+.cb-check-picks button.on { outline: 2px solid #7ee7ff; }
 .cb-foot {
   grid-column: 1 / -1;
   min-width: 0;

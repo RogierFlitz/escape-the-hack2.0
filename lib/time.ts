@@ -42,3 +42,10 @@ export function teamRemainingSec(session: Session, team: Team, now: number) {
 export function running(session: Session) {
   return session.status === "live";
 }
+
+/** Extra tijd bij missie 5, alleen als de resterende crisistijd onder een kwartier zakt. */
+export function missionFiveGrant(remainSec: number) {
+  const want = 15 * 60;
+  if (remainSec >= want) return 0;
+  return Math.min(10 * 60, want - remainSec);
+}

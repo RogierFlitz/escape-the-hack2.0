@@ -105,6 +105,12 @@ export function TeamResult({ team, passRule, tieRule, disclaimer, modeNote, lega
         </div>
         <div className="rs-score">{team.score} pt</div>
         {team.conduct.length > 0 && <p className="rs-muted">De score telt de opdrachten van deze sessie. De drie keuzes staan apart en veranderen het puntentotaal niet.</p>}
+        <div className="rs-stats">
+          <div className="rs-card"><small>Spelpunten</small><p>{team.debrief.points}</p></div>
+          <div className="rs-card"><small>Kennis</small><p>{team.debrief.knowledge}</p></div>
+          <div className="rs-card"><small>Gedrag</small><p>{team.debrief.behavior}</p></div>
+          <div className="rs-card"><small>Samenwerking</small><p>{team.debrief.teamwork}</p></div>
+        </div>
         <p className="rs-muted">{modeNote}</p>
       </header>
       <nav className="rs-tabs rs-noprint" aria-label="Resultaten">

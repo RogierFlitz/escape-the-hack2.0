@@ -86,6 +86,7 @@ export type TeamReport = {
   improvements: string[];
   advice: Advice[];
   conduct: { id: string; label: string; result: "veilig" | "onveilig" | "niet voorgelegd" }[];
+  debrief: { points: string; knowledge: string; behavior: string; teamwork: string };
 };
 
 export type BoardRow = {
@@ -180,6 +181,25 @@ const CASES = [
   { id: "share", label: "Klantgegevens" },
   { id: "tool", label: "Herstelprogramma" },
 ] as const;
+
+function debriefOf(team: Team, score: ReturnType<typeof scoreBreakdown>, conduct: TeamReport["conduct"]) {
+  const known = [...(team.awareness?.decisions ?? []), ...(team.awareness?.evals ?? [])];
+  const safe = known.filter((item) => item.correct).length;
+  const knowledge = known.length === 0
+    ? "Geen vastgelegde kennisvraag in deze sessie."
+    : `${safe} van ${known.length} vastgelegde keuzes waren veilig of juist.`;
+  const behavior = [
+    team.breachOffsetSec === null ? "De valse mail was nog niet aan de beurt." : team.phishReported ? "De valse mail is gemeld." : "De valse mail is niet gemeld.",
+    team.fails === 0 ? "Geen afgekeurde poging." : `${team.fails} afgekeurde pogingen.`,
+    ...conduct.map((item) => `${item.label}: ${item.result}.`),
+  ].join(" ");
+  return {
+    points: `${score.total} punten voor de opdrachten, de hoofdstukken, de resterende tijd en de afronding. Een hoge score toont het spelresultaat.`,
+    knowledge,
+    behavior,
+    teamwork: "Samenwerking meet het spel niet. In de nabespreking: wie las de bronnen, wie legde het verband, en wie sprak de keuze uit.",
+  };
+}
 
 function conductOf(session: Session, team: Team) {
   if (routeOf(session) < 3) return [];
@@ -404,6 +424,7 @@ function teamReport(session: Session, team: Team, now: number): TeamReport {
     improvements: improvements.slice(0, 4),
     advice: points,
     conduct,
+    debrief: debriefOf(team, score, conduct),
   };
 }
 

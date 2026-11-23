@@ -16,7 +16,7 @@ import { asSector } from "../lib/game/sector";
 import { narrateHoldMs } from "../components/game/narrate";
 import { requiredPuzzleIds } from "../lib/game/route";
 import { allSolved, completedChapters, currentChapterId, scoreBreakdown } from "../lib/scoring";
-import { baseRemainingSec, teamRemainingSec } from "../lib/time";
+import { baseRemainingSec, missionFiveGrant, teamRemainingSec } from "../lib/time";
 import type { Session, Team } from "../lib/types";
 
 const session: Session = {
@@ -327,6 +327,13 @@ test("hoofdstukken gaan pas open als de vorige dicht is", () => {
   assert.equal(currentChapterId([]), 1);
   assert.equal(currentChapterId(["ch1-bays", "ch1-login", "ch1-nodes", "ch1-ports"]), 2);
   assert.equal(allSolved(PUZZLE_IDS), true);
+});
+
+test("missie 5 krijgt tijd bij als de klok onder een kwartier zakt", () => {
+  assert.equal(missionFiveGrant(20 * 60), 0);
+  assert.equal(missionFiveGrant(15 * 60), 0);
+  assert.equal(missionFiveGrant(8 * 60), 7 * 60);
+  assert.equal(missionFiveGrant(60), 10 * 60);
 });
 
 test("de crisisklok start pas wanneer de hack gebeurt", () => {

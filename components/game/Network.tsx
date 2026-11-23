@@ -137,7 +137,8 @@ export function NetworkDesk({
 
   const tabs = [
     { id: "board", label: "Overzicht" },
-    ...sections.filter((item) => item.id === "measures" || item.id === "patch"),
+    ...(puzzleId === "ch3-boot" ? sections.filter((item) => item.id === "measures") : []),
+    ...(puzzleId === "ch3-cables" ? sections.filter((item) => item.id === "patch") : []),
   ];
 
   return (
@@ -229,8 +230,9 @@ function SessionCase({
       </div>
       <p className="soc-count">{picked.length} aanwijzing{picked.length === 1 ? "" : "en"} gekozen</p>
       <button className="btn soc-go" type="button" disabled={busy || solved || !ready} onClick={() => onSolve({ session, clues: picked })}>
-        Conclusie vastleggen
+        {ready || solved ? "Conclusie vastleggen" : "Kies eerst één sessie en twee aanwijzingen."}
       </button>
+      {!ready && !solved && <p className="sp-quiet">Kies eerst één sessie en twee aanwijzingen.</p>}
     </div>
   );
 }
@@ -263,8 +265,9 @@ function RouteCase({
       </div>
       <button className="btn btn-ghost" type="button" onClick={onBack}>Stap terug</button>
       <button className="btn soc-go" type="button" disabled={busy || solved || path.length < 2} onClick={() => onSolve({ path })}>
-        Route vastleggen
+        {path.length >= 2 || solved ? "Route vastleggen" : "Zet eerst een sprong op de kaart."}
       </button>
+      {path.length < 2 && !solved && <p className="sp-quiet">Zet eerst een sprong op de kaart.</p>}
     </div>
   );
 }
@@ -289,8 +292,9 @@ function IsolateCase({
         {notes.map((item) => <p key={item.id}>{item.preview}</p>)}
       </div>
       <button className="btn soc-go" type="button" disabled={busy || solved || actions.length < 2} onClick={() => onSolve({ actions })}>
-        Maatregelen uitvoeren
+        {actions.length >= 2 || solved ? "Maatregelen uitvoeren" : "Kies eerst twee maatregelen."}
       </button>
+      {actions.length < 2 && !solved && <p className="sp-quiet">Kies eerst twee maatregelen.</p>}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { duckMusic, readVoiceVolume } from "./mix";
+import { mediaFile } from "@/lib/game/media";
+import { duckMusic, playRoleVoice, readVoiceVolume } from "./mix";
 
 const VOICE_KEY = "eth-voice";
 const SAMPLE = "Zo, daar zijn jullie dan. Jullie zijn te laat.";
@@ -256,6 +257,10 @@ export function narrate(line: string, audio: boolean, onDone?: () => void, voice
     if (mine !== token || started) return;
     started = true;
     const synth = window.speechSynthesis;
+    const roleFile = story === "kade" ? mediaFile("kade-voice") : story === "nora" ? mediaFile("nora-voice") : null;
+    if (roleFile && playRoleVoice(roleFile, finish, startSpeech)) return;
+    startSpeech();
+    function startSpeech() {
     synth.cancel();
     window.setTimeout(() => {
       if (mine !== token) return;
@@ -281,6 +286,7 @@ export function narrate(line: string, audio: boolean, onDone?: () => void, voice
       };
       window.setTimeout(watch, narrateHoldMs(text));
     }, 60);
+    }
   };
   if (window.speechSynthesis.getVoices().length === 0) {
     window.speechSynthesis.addEventListener("voiceschanged", start, { once: true });
